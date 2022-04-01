@@ -10,8 +10,9 @@ A mobile robot
   * For example, through browser-based GUI
 * Automatic navigation (A to B) (after exploring space?)
   * Complete more complex tasks like _fetch an item_?
-* Charging capability preferable
+* Charging capability preferable (e.g. MCP73831)
   * https://www.youtube.com/watch?v=GRd9uTwg7r4&ab_channel=MicroTypeEngineering
+  * https://www.youtube.com/watch?v=TyaW8ZKumno&ab_channel=PlumPot
 
 
 # Initial design
@@ -27,7 +28,8 @@ Datasheets for components are found in `Datasheets` folder.
   * Around 50 kB RAM (for user, when connected to a station)
   * **Requires external SPI flash!** Up to 16 MB flash can be supported
     * Suggested: 512 kB (without OTA), 1 MB (with OTA)
-* **Dual H-bridge motor driver**: L293D
+  * Single core, 80 MHz
+* **Dual H-bridge motor driver**: L293D | [datasheet](datasheets/L293x_datasheet.pdf)
 * Power management:
   * **Battery**: 11.1V Li-Po (6-12V), (3 x 3.7V cells)
     * Price: $20-40
@@ -49,3 +51,21 @@ Datasheets for components are found in `Datasheets` folder.
   * Others?
 
 <img src="docs/initial_design_schematic.png" alt="Initial design." />
+
+# Discussion
+
+I am not sure if either ESP32 or ESP8266 come in QFP format (only in QFN, no-leads). I guess JLCPCB and others also assemble these devices so maybe this is not an issue.
+
+## ESP32
+ESP32 would be considerably better than ESP8266. It has a lot more functionality and also has 8MB of onboard flash (ESP32-S3FN8, see ESP32-S3 datasheet, p.11).
+
+* https://www.youtube.com/watch?v=WWIy6a0T7WM&ab_channel=PlumPot
+* Decoupling caps (as close of the pins as possible)
+* External crystal? (see Phil's lab)
+* Note the antenna/RF part!
+  * No traces (or any copper) beneath the antenna part!
+* Careful with differential pairs
+
+* https://en.wikipedia.org/wiki/ESP32#ESP32-S3:
+  * ESP32-WROOM-32D: PCB trace antenna, 4 MiB flash (probably preferable)
+  * ESP32-WROOM-32U: U.FL socket antenna, 4 MiB flash
