@@ -18,9 +18,15 @@ A mobile robot
 
 Datasheets for components are found in `Datasheets` folder.
 
-* **Processor & connectivity**: ESP8266
-  * 802.11 b/g/n Wifi
-  * ???
+* **Processor & connectivity**: ESP8266 | [datasheet](datasheets/ESP8266EX_datasheet-v4.4.pdf)
+  * These values are for ESP8266EX
+  * WiFi: 802.11 b/g/n Wifi, 2.4-2.5 GHz
+  * Peripherals: UART / SDIO / SPI / I2C / I2S / IR Remote Control / GPIO / PWM
+  * Operating voltage 3.3V (3.0-3.6V)
+  * Average operating current: 80 mA
+  * Around 50 kB RAM (for user, when connected to a station)
+  * **Requires external SPI flash!** Up to 16 MB flash can be supported
+    * Suggested: 512 kB (without OTA), 1 MB (with OTA)
 * **Dual H-bridge motor driver**: L293D
 * Power management:
   * **Battery**: 11.1V Li-Po (6-12V), (3 x 3.7V cells)
