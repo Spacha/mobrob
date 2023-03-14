@@ -4,12 +4,13 @@
  */
 #include <WiFi.h>
 #include <WiFiUdp.h>
+#include "NetworkCredentials.h"
 
 const int recvBufLen = 64;
 
 // WiFi network name and password:
-const char * networkName = "";
-const char * networkPswd = "";
+const char * networkName = NETWORK_NAME;
+const char * networkPswd = NETWORK_PASSWORD;
 
 // IP address to send UDP data to:
 //  either use the ip address of the server or 
