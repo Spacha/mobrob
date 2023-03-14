@@ -5,6 +5,8 @@
 #include <WiFi.h>
 #include <WiFiUdp.h>
 
+const int recvBufLen = 64;
+
 // WiFi network name and password:
 const char * networkName = "";
 const char * networkPswd = "";
@@ -38,6 +40,16 @@ void loop() {
     udp.beginPacket(udpAddress, udpPort);
     udp.printf("Seconds since boot: %lu", millis() / 1000);
     udp.endPacket();
+  }
+
+  // TEST: Receive from the network...
+  uint8_t buffer[recvBufLen] ;
+  memset(buffer, 0, recvBufLen);
+  udp.parsePacket();
+
+  if (udp.read(buffer, recvBufLen) > 0) {
+    Serial.print("Server to client: ");
+    Serial.println((char *)buffer);
   }
 
   // Wait for 1 second
