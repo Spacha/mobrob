@@ -1,5 +1,6 @@
 import socket
 
+# server information
 UDP_IP = "192.168.1.154"
 UDP_PORT = 3333
 
