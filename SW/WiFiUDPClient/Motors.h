@@ -1,3 +1,6 @@
+#ifndef __MOTORS_H__
+#define __MOTORS_H__
+
 /***************************************************
  * Simple motor control demo for ESP32
  ***************************************************
@@ -32,8 +35,8 @@
  */
 
 // Motor A pins
-const int motorAPin1      = 32;
-const int motorAPin2      = 33;
+const int motorAPin1      = 32; // 2
+const int motorAPin2      = 33; // 3
 const int motorAPinEnable = 12;
 
 // Motor B pins
@@ -47,37 +50,24 @@ const int pwmChannel      = 0;
 const int resolution      = 8;
 const int dutyCycle       = 200; // 0 - 255
 
-void motorsForwards() {
-  // Both motors forwards
-  Serial.println("Forwards...");
-  digitalWrite(motorAPin1, LOW);
-  digitalWrite(motorAPin2, HIGH);
+class Motors {
+public:
+  Motors();
+  ~Motors();
 
-  digitalWrite(motorBPin1, LOW);
-  digitalWrite(motorBPin2, HIGH);
-}
+  void setup();
+  void forwards();
+  void backwards();
+  void stop();
+};
 
-void motorsBackwards() {
-  // Both motors backwards
-  Serial.println("Backwards...");
-  digitalWrite(motorAPin1, HIGH);
-  digitalWrite(motorAPin2, LOW);
+// Motors implementation
 
-  digitalWrite(motorBPin1, HIGH);
-  digitalWrite(motorBPin2, LOW);
-}
+Motors::Motors() {};
 
-void motorsStop() {
-  // Both motors stop
-  Serial.println("Stop...");
-  digitalWrite(motorAPin1, LOW);
-  digitalWrite(motorAPin2, LOW);
+Motors::~Motors() {};
 
-  digitalWrite(motorBPin1, LOW);
-  digitalWrite(motorBPin2, LOW);
-}
-
-void setup() {
+void Motors::setup() {
   // setup control pins
   pinMode(motorAPin1, OUTPUT);
   pinMode(motorAPin2, OUTPUT);
@@ -87,50 +77,42 @@ void setup() {
   pinMode(motorBPinEnable, OUTPUT);
 
   // setup speed control
-  //ledcSetup(pwmChannel, freq, resolution);
-  //ledcAttachPin(motorAPinEnable, pwmChannel);
-  //ledcAttachPin(motorBPinEnable, pwmChannel);
+  ledcSetup(pwmChannel, freq, resolution);
+  ledcAttachPin(motorAPinEnable, pwmChannel);
+  ledcAttachPin(motorBPinEnable, pwmChannel);
 
-  Serial.begin(9600);
-  Serial.println("Starting operation...");
-}
+  // set motor speed
+  ledcWrite(pwmChannel, dutyCycle);
+};
 
-void loop() {
-  
-  delay(15000);
-
-  // below 170-180 the motors don't work well (voltage gets too low I guess)
-
-  analogWrite(motorAPinEnable, 0);
-  analogWrite(motorBPinEnable, 0);
-
+void Motors::forwards() {
+  // Both motors forwards
+  Serial.println("Forwards...");
   digitalWrite(motorAPin1, LOW);
   digitalWrite(motorAPin2, HIGH);
 
   digitalWrite(motorBPin1, LOW);
   digitalWrite(motorBPin2, HIGH);
+};
 
-  for (int i = 0; i <= 255; i += 15) {
-    Serial.print("Motor speed: ");
-    Serial.println(i);
-    analogWrite(motorAPinEnable, i);
-    analogWrite(motorBPinEnable, i);
-    delay(500);
-  }
-  
-  while (1) {}
-  // set motor speed
-  //ledcWrite(pwmChannel, dutyCycle);
+void Motors::backwards() {
+  // Both motors backwards
+  Serial.println("Backwards...");
+  digitalWrite(motorAPin1, HIGH);
+  digitalWrite(motorAPin2, LOW);
 
-  //motorsForwards();
-  //delay(1000);
+  digitalWrite(motorBPin1, HIGH);
+  digitalWrite(motorBPin2, LOW);
+};
 
-  // motorsStop();
-  // delay(1000);
+void Motors::stop() {
+  // Both motors stop
+  Serial.println("Stop...");
+  digitalWrite(motorAPin1, LOW);
+  digitalWrite(motorAPin2, LOW);
 
-  // motorsBackwards();
-  // delay(1000);
-
-  // motorsStop();
-  // delay(1000);
+  digitalWrite(motorBPin1, LOW);
+  digitalWrite(motorBPin2, LOW);
 }
+
+#endif /* __MOTORS_H__ */

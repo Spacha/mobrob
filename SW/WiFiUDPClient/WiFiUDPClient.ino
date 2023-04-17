@@ -5,6 +5,14 @@
 #include <WiFi.h>
 #include <WiFiUdp.h>
 #include "NetworkCredentials.h"
+#include "Motors.h"
+
+// Commands for testing
+const char * cmdFwd   = "W";
+const char * cmdLeft  = "A";
+const char * cmdBwd   = "S";
+const char * cmdRight = "D";
+const char * cmdStop  = "X";
 
 const int recvBufLen = 64;
 
@@ -24,37 +32,59 @@ boolean connected = false;
 // The udp library class
 WiFiUDP udp;
 
+// The class controlling the motors
+Motors motors;
+
+int loopCounter = 0;
+
 void setup() {
   // Initilize hardware serial:
   Serial.begin(115200);
   
   // Connect to the WiFi network
   connectToWiFi(networkName, networkPswd);
+
+  motors.setup();
 }
 
 void loop() {
   // only send data when connected
-  if (connected) {
+  if ((loopCounter % 8) == 0 && connected) {
     Serial.println("Sending a UDP packet...");
     
     // Send a packet
     udp.beginPacket(udpAddress, udpPort);
-    udp.printf("Seconds since boot: %lu", millis() / 1000);
+    //udp.printf("Seconds since boot: %lu", millis() / 1000);
+    udp.printf("I am alive.");
     udp.endPacket();
   }
 
   // TEST: Receive from the network...
-  uint8_t buffer[recvBufLen] ;
+  uint8_t buffer[recvBufLen];
   memset(buffer, 0, recvBufLen);
   udp.parsePacket();
 
   if (udp.read(buffer, recvBufLen) > 0) {
     Serial.print("Server to client: ");
     Serial.println((char *)buffer);
+
+    if (strcmp((char *)buffer, cmdFwd) == 0) {
+      Serial.println(">> I was asked to move forwards!");
+      motors.forwards();
+    }
+    else if (strcmp((char *)buffer, cmdBwd) == 0) {
+      Serial.println(">> I was asked to move backwards!");
+      motors.backwards();
+    }
+    else if (strcmp((char *)buffer, cmdStop) == 0) {
+      Serial.println(">> I was asked to stop!");
+      motors.stop();
+    }
   }
 
   // Wait for 1 second
-  delay(1000);
+  delay(500);
+  loopCounter++;  
 }
 
 void connectToWiFi(const char * ssid, const char * pwd) {
@@ -62,11 +92,18 @@ void connectToWiFi(const char * ssid, const char * pwd) {
 
   // delete old config
   WiFi.disconnect(true);
+
   //register event handler
   WiFi.onEvent(WiFiEvent);
   
   // Initiate connection
   WiFi.begin(ssid, pwd);
+
+  // FIXME: Probably not needed!
+  while(WiFi.status() != WL_CONNECTED){
+    Serial.print(".");
+    delay(100);
+  }
 
   Serial.println("Waiting for WIFI connection...");
 }
