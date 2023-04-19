@@ -1,16 +1,63 @@
 #include "WiFi.h"
 #include "AsyncUDP.h"
 
-#define BLINKER_PIN 32
-#define LF_PIN      13
-#define LB_PIN      26
-#define RF_PIN      12
-#define RB_PIN      25
+#define BLINKER_PIN 27
+#define L1_PIN      25
+#define L2_PIN      13
+#define LEN_PIN     26
+#define R1_PIN      32
+#define R2_PIN      12
+#define REN_PIN     33
+
+#define MSPEED      180 // 0..255
 
 const char * ssid = "";
 const char * password = "";
 
 AsyncUDP udp;
+
+// TODO: Add a small stop delay when changing directions!
+void leftTrackFW()
+{
+  digitalWrite(L1_PIN, HIGH);
+  digitalWrite(L2_PIN, LOW);
+  analogWrite(LEN_PIN, MSPEED);
+}
+
+void leftTrackBW()
+{
+  digitalWrite(L1_PIN, LOW);
+  digitalWrite(L2_PIN, HIGH);
+  analogWrite(LEN_PIN, MSPEED);
+}
+
+void leftTrackStop()
+{
+  digitalWrite(L1_PIN, LOW);
+  digitalWrite(L2_PIN, LOW);
+  analogWrite(LEN_PIN, 0);
+}
+
+void rightTrackFW()
+{
+  digitalWrite(R1_PIN, HIGH);
+  digitalWrite(R2_PIN, LOW);
+  analogWrite(REN_PIN, MSPEED);
+}
+
+void rightTrackBW()
+{
+  digitalWrite(R1_PIN, LOW);
+  digitalWrite(R2_PIN, HIGH);
+  analogWrite(REN_PIN, MSPEED);
+}
+
+void rightTrackStop()
+{
+  digitalWrite(R1_PIN, LOW);
+  digitalWrite(R2_PIN, LOW);
+  analogWrite(REN_PIN, 0);
+}
 
 void setup()
 {
@@ -45,18 +92,15 @@ void setup()
           switch ((cmd_byte & 0b1100) >> 2) {
             case 1:
               Serial.print("forward");
-              digitalWrite(LF_PIN, HIGH);
-              digitalWrite(LB_PIN, LOW);
+              leftTrackFW();
               break;
             case 2:
               Serial.print("backward");
-              digitalWrite(LF_PIN, LOW);
-              digitalWrite(LB_PIN, HIGH);
+              leftTrackBW();
               break;
             case 3:
               Serial.print("stop");
-              digitalWrite(LF_PIN, LOW);
-              digitalWrite(LB_PIN, LOW);
+              leftTrackStop();
               break;
             default:
               Serial.print("[none]");
@@ -67,18 +111,15 @@ void setup()
           switch ((cmd_byte & 0b0011) >> 0) {
             case 1:
               Serial.print("forward");
-              digitalWrite(RF_PIN, HIGH);
-              digitalWrite(RB_PIN, LOW);
+              rightTrackFW();
               break;
             case 2:
               Serial.print("backward");
-              digitalWrite(RF_PIN, LOW);
-              digitalWrite(RB_PIN, HIGH);
+              rightTrackBW();
               break;
             case 3:
               Serial.print("stop");
-              digitalWrite(RF_PIN, LOW);
-              digitalWrite(RB_PIN, LOW);
+              rightTrackStop();
               break;
             default:
               Serial.print("[none]");
@@ -93,10 +134,12 @@ void setup()
     }
 
     pinMode(BLINKER_PIN, OUTPUT);
-    pinMode(LF_PIN, OUTPUT);
-    pinMode(LB_PIN, OUTPUT);
-    pinMode(RF_PIN, OUTPUT);
-    pinMode(RB_PIN, OUTPUT);
+    pinMode(L1_PIN, OUTPUT);
+    pinMode(L2_PIN, OUTPUT);
+    pinMode(LEN_PIN, OUTPUT);
+    pinMode(R1_PIN, OUTPUT);
+    pinMode(R2_PIN, OUTPUT);
+    pinMode(REN_PIN, OUTPUT);
 }
 
 void loop()
