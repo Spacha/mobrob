@@ -33,11 +33,16 @@ class KeycapDialog(QDialog):
         self.keyPressEvent = self.key_event
         self.keyReleaseEvent = self.key_event
 
+        self.key_whitelist = None
         self.held_keys = set()
 
     def key_event(self, event):
         # don't care about annoying autorep keys
         if event.isAutoRepeat():
+            return
+
+        # only care about whitelisted keys
+        if self.key_whitelist is not None and event.text() not in self.key_whitelist:
             return
 
         if event.type() == QEvent.KeyPress:
@@ -46,8 +51,10 @@ class KeycapDialog(QDialog):
             self.held_keys.remove(event.text())
 
         self.held_keys_changed.emit(self.held_keys)
-        #self.label.setText(', '.join([QKeySequence(k).toString() for k in self.held_keys]))
         self.label.setText(', '.join([k for k in self.held_keys]))
+
+    def whitelist_keys(self, keys):
+        self.key_whitelist = keys
 
 
 class DashboardApplication(QMainWindow):
@@ -149,13 +156,14 @@ class DashboardApplication(QMainWindow):
                 message = data.decode('utf-8')
                 print(f'Received message from {addr}: {message}')
 
-                self.messages.append(f"Received message from {addr}: {message}")
-                self.update_message_viewer()
-
-                if not self.client_connected and data == b'Hello Server!':
+                if data == b'Hello Server!':
                     self.client_addr = addr
                     self.client_connected = True
                     self.update_status_bar(f"Client connected: {self.client_addr[0]}:{self.client_addr[1]}")
+                    self.messages.append(f"Client connected: {self.client_addr[0]}:{self.client_addr[1]}")
+
+                self.messages.append(f"Received message from {addr}: {message}")
+                self.update_message_viewer()
 
     # TODO: Move server stuff to a separate module!
     def send_message(self, message):
@@ -174,6 +182,7 @@ class DashboardApplication(QMainWindow):
     def show_keycap_dialog(self):
         # Create an instance of the custom dialog
         keycap_dialog = KeycapDialog(self)
+        keycap_dialog.whitelist_keys(['w', 'e', 's', 'd'])
 
         def handle_held_keys_changed(held_keys):
             # slot for handling the held_keys_changes signal
