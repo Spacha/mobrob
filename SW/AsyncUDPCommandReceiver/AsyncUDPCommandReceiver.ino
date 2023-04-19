@@ -11,7 +11,6 @@ const char * ssid = "";
 const char * password = "";
 
 AsyncUDP udp;
-char current_command = 0;
 
 void setup()
 {

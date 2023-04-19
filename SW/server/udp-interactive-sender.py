@@ -18,7 +18,7 @@ client_addr = None
 while not connected:
     try:
         data, addr = sock.recvfrom(BUFSIZE)
-        print(f"received message [from client {client_addr}]: {data}")
+        print(f"received message [from client {addr}]: {data}")
 
         if data == b'Hello Server!':
             client_addr = addr
