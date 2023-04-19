@@ -1,7 +1,7 @@
 import socket
 
 # server information
-UDP_IP = "192.168.1.154"
+UDP_IP = "192.168.1.168"
 UDP_PORT = 3333
 
 BUFSIZE = 1024
@@ -19,6 +19,12 @@ while True:
     try:
         data, addr = sock.recvfrom(BUFSIZE)
         print(f"received message [from client {addr}]: {data}")
+
+        # send a response (unless the message begins with 'Got' :D):
+        if data == b'Hello Server!':
+            sock.sendto(bytes('Hello to you too!', 'ascii'), addr)
+        if data[:3] != b'Got':
+            sock.sendto(bytes('Hello robo, how doink?', 'ascii'), addr)
     except IOError as msg:
         pass  # timed out, try again...
     except KeyboardInterrupt:

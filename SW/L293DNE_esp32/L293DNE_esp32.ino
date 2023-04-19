@@ -107,20 +107,4 @@ void loop() {
   //digitalWrite(motorB_en, HIGH);
   analogWrite(motorA_en, 180);
   analogWrite(motorB_en, 180);
-  
-  //while (1) {}
-  // set motor speed
-  //ledcWrite(pwmChannel, dutyCycle);
-
-  //motorsForwards();
-  //delay(1000);
-
-  // motorsStop();
-  // delay(1000);
-
-  // motorsBackwards();
-  // delay(1000);
-
-  // motorsStop();
-  // delay(1000);
 }
