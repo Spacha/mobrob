@@ -14,6 +14,22 @@ SERVER_TIMEOUT = 1
 # - UDP server (receive asynchronously, send synchronously)
 # - Key handlers (get held keys if in "held" mode)
 
+keymap = {
+    'forward':              'w',
+    'backward':             's',
+    'turn_left':            'a',
+    'turn_right':           'd',
+
+    'left_fw':              't',
+    'left_bw':              'g',
+    'right_fw':             'y',
+    'right_bw':             'h',
+}
+keymap_groups = {
+    'movement_control': ['forward', 'backward', 'turn_left', 'turn_right', 'turn_left_tight', 'turn_right_tight'],
+    'track_control':    ['left_fw', 'left_bw', 'right_fw', 'right_bw'],
+}
+
 # Consider grabKeyboard: https://doc.qt.io/qt-6/qwidget.html#grabKeyboard
 class KeycapDialog(QDialog):
     held_keys_changed = pyqtSignal(set)
@@ -182,7 +198,7 @@ class DashboardApplication(QMainWindow):
     def show_keycap_dialog(self):
         # Create an instance of the custom dialog
         keycap_dialog = KeycapDialog(self)
-        keycap_dialog.whitelist_keys(['w', 'e', 's', 'd'])
+        keycap_dialog.whitelist_keys(keymap.values())
 
         def handle_held_keys_changed(held_keys):
             # slot for handling the held_keys_changes signal
@@ -191,23 +207,57 @@ class DashboardApplication(QMainWindow):
             # map keys to command byte
             cmd = 0b0000
 
-            # if the left track isn't asked to move, stop it completely
-            if 'w' not in held_keys and 's' not in held_keys:
-                cmd |= 0b1100
-            else:
-                if 'w' in held_keys:
-                    cmd |= 0b0100
-                if 's' in held_keys:
-                    cmd |= 0b1000
+            # Control tank movement
 
-            # if the right track isn't asked to move, stop it completely
-            if 'e' not in held_keys and 'd' not in held_keys:
-                cmd |= 0b0011
-            else:
-                if 'e' in held_keys:
-                    cmd |= 0b0001
-                if 'd' in held_keys:
-                    cmd |= 0b0010
+            if keymap['forward'] in held_keys:
+                if keymap['turn_right'] in held_keys:
+                    # drive forward and turn right
+                    cmd = 0b0111
+                elif keymap['turn_left'] in held_keys:
+                    # drive forward and turn left
+                    cmd = 0b1101
+                else:
+                    # drive forward
+                    cmd = 0b0101
+            elif keymap['backward'] in held_keys:
+                if keymap['turn_right'] in held_keys:
+                    # reverse and turn right
+                    cmd = 0b1011
+                elif keymap['turn_left'] in held_keys:
+                    # reverse and turn left
+                    cmd = 0b1110
+                else:
+                    # bw
+                    cmd = 0b1010
+            elif keymap['turn_left'] in held_keys:
+                # turn left in place
+                cmd = 0b1001
+            elif keymap['turn_right'] in held_keys:
+                # turn right in place
+                cmd = 0b0110
+
+            # Control tracks individually
+
+            # only enable track control if none of the movement keys are not being held
+            #if len(set(keymap_groups['movement_control'].values()) & set(held_keys)) == 0:
+            if cmd == 0b0000:
+                # if the left track isn't asked to move, stop it completely
+                if keymap['left_fw'] not in held_keys and keymap['left_bw'] not in held_keys:
+                    cmd |= 0b1100
+                else:
+                    if keymap['left_fw'] in held_keys:
+                        cmd |= 0b0100
+                    if keymap['left_bw'] in held_keys:
+                        cmd |= 0b1000
+
+                # if the right track isn't asked to move, stop it completely
+                if keymap['right_fw'] not in held_keys and keymap['right_bw'] not in held_keys:
+                    cmd |= 0b0011
+                else:
+                    if keymap['right_fw'] in held_keys:
+                        cmd |= 0b0001
+                    if keymap['right_bw'] in held_keys:
+                        cmd |= 0b0010
 
             print(f"Command byte: 0b{cmd:04b}")
             self.send_message( cmd.to_bytes(ceil(1 / 8), 'little') )
