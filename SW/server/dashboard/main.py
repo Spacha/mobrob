@@ -14,6 +14,16 @@ SERVER_TIMEOUT = 1
 # - UDP server (receive asynchronously, send synchronously)
 # - Key handlers (get held keys if in "held" mode)
 
+# Commands:
+# 0000 -> motor control
+#   ...
+# 0001 -> speed control
+#   1111 -> 250
+#   1100 -> 220
+#   1000 -> 180
+#   0110 -> 160
+#   0100 -> 140
+
 keymap = {
     'forward':              'w',
     'backward':             's',
