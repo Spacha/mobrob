@@ -1,117 +1,370 @@
-/* Basic Multi Threading Arduino Example
-   This example code is in the Public Domain (or CC0 licensed, at your option.)
-   Unless required by applicable law or agreed to in writing, this
-   software is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-   CONDITIONS OF ANY KIND, either express or implied.
-*/
-// Please read file README.md in the folder containing this example.
+// "C:\\Users\\miika\\AppData\\Local\\Arduino15\\packages\\esp32\\tools\\xtensa-esp32-elf-gcc\\esp-2021r2-patch5-8.4.0/bin/xtensa-esp32-elf-objdump" -d BasicMultiThreading.ino.elf >> BasicMultiThreading.ino.asm
+
+#include <Arduino.h>  // millis
+#include "WiFi.h"
+#include "AsyncUDP.h"
+#include "network_credentials.h"
+//#include "driving.h"
 
 #if CONFIG_FREERTOS_UNICORE
-#define ARDUINO_RUNNING_CORE 0
+  #define ARDUINO_RUNNING_CORE 0
 #else
-#define ARDUINO_RUNNING_CORE 1
+  #define ARDUINO_RUNNING_CORE 1
 #endif
 
-#define ANALOG_INPUT_PIN 33
+// Pin assignments
 
 #ifndef LED_BUILTIN
-  #define LED_BUILTIN 32 // Specify the on which is your LED
+  #define LED_BUILTIN 27
 #endif
 
-// Define two tasks for Blink & AnalogRead.
-void TaskBlink( void *pvParameters );
-void TaskAnalogRead( void *pvParameters );
-TaskHandle_t analog_read_task_handle; // You can (don't have to) use this to be able to manipulate a task from somewhere else.
+#define LHALL_PIN   35  // Left track hall sensor
+#define RHALL_PIN   34  // Right track hall sensor
 
-// The setup function runs once when you press reset or power on the board.
+#define UT_TRIG_PIN  4   // Ultrasonic sensor trigger
+#define UT_ECHO_PIN 23  // Ultrasonic sensor echo
+
+#define L1_PIN      25  // Left motor control 1
+#define L2_PIN      13  // Left motor control 2
+#define LEN_PIN     26  // Left motor enable
+#define R1_PIN      32  // Right motor control 1
+#define R2_PIN      12  // Right motor control 2
+#define REN_PIN     33  // Right motor enable
+
+#define WIFI_POLL_MS          10000
+#define WIFI_TIMEOUT_MS       20000
+#define WIFI_RECOVER_TIME_MS  30000
+
+#define HALL_POLL_MS          5
+
+// speed for both tracks
+uint8_t g_speed = 180;
+
+// map 4-bit values into various speed levels (in range 0 - 255)
+uint8_t speed_map[16] = { 0, 0, 0, 130, 140, 150, 160, 170, 180, 190, 200, 210, 220, 230, 240, 250 };
+
+// UDP setup
+IPAddress g_server_addr(192, 168, 1, 168);
+uint16_t g_server_port = 3333;
+AsyncUDP udp;
+
+// task definitions
+void TaskBlink(void *params);
+void TaskReadHallSensors(void *params);
+void TaskKeepWifiAlive(void *params);
+
+TaskHandle_t analog_read_task_handle;
+
 void setup() {
-  // Initialize serial communication at 115200 bits per second:
   Serial.begin(115200);
-  // Set up two tasks to run independently.
-  uint32_t blink_delay = 1000; // Delay between changing state on LED pin
+
+  uint32_t blink_delay = 1000;
   xTaskCreate(
-    TaskBlink
-    ,  "Task Blink" // A name just for humans
-    ,  2048        // The stack size can be checked by calling `uxHighWaterMark = uxTaskGetStackHighWaterMark(NULL);`
-    ,  (void*) &blink_delay // Task parameter which can modify the task behavior. This must be passed as pointer to void.
-    ,  2  // Priority
-    ,  NULL // Task handle is not used here - simply pass NULL
-    );
+    TaskBlink,
+    "Blink",                      // Task name
+    2048,                         // Stack size (bytes)
+    (void *)&blink_delay,         // Parameter
+    2,                            // Task priority
+    NULL                          // Task handle
+  );
 
-  // This variant of task creation can also specify on which core it will be run (only relevant for multi-core ESPs)
   xTaskCreatePinnedToCore(
-    TaskAnalogRead
-    ,  "Analog Read"
-    ,  2048  // Stack size
-    ,  NULL  // When no parameter is used, simply pass NULL
-    ,  1  // Priority
-    ,  &analog_read_task_handle // With task handle we will be able to manipulate with this task.
-    ,  ARDUINO_RUNNING_CORE // Core on which the task will run
-    );
+    TaskReadHallSensors,
+    "AnalogRead",                 // Task name
+    2048,                         // Stack size (bytes)
+    NULL,                         // Parameter
+    1,                            // Task priority
+    &analog_read_task_handle,     // Task handle
+    ARDUINO_RUNNING_CORE
+  );
 
-  Serial.printf("Basic Multi Threading Arduino Example\n");
-  // Now the task scheduler, which takes over control of scheduling individual tasks, is automatically started.
+  xTaskCreatePinnedToCore(
+    TaskKeepWiFiAlive,
+    "KeepWiFiAlive",              // Task name
+    5000,                         // Stack size (bytes)
+    NULL,                         // Parameter
+    1,                            // Task priority
+    NULL,                         // Task handle
+    ARDUINO_RUNNING_CORE
+  );
+
+  Serial.println("Initialized.");
 }
 
-void loop(){
-  if(analog_read_task_handle != NULL){ // Make sure that the task actually exists
-    delay(20000);
-    vTaskDelete(analog_read_task_handle); // Delete task
-    analog_read_task_handle = NULL; // prevent calling vTaskDelete on non-existing task
-  }
+void loop() {
+  //if (analog_read_task_handle != NULL) {
+  //  delay(120000);
+  //  vTaskDelete(analog_read_task_handle);
+  //  analog_read_task_handle = NULL;
+  //}
 }
 
 /*--------------------------------------------------*/
 /*---------------------- Tasks ---------------------*/
 /*--------------------------------------------------*/
 
-void TaskBlink(void *pvParameters){  // This is a task.
-  uint32_t blink_delay = *((uint32_t*)pvParameters);
+/**
+ * Task: Blink LED repeatedly.
+ *
+ * TODO: Indicate the connection status by adjusting the period
+ * and/or using an RGB LED.
+ */
+void TaskBlink(void *params) {
+  uint32_t blink_delay = *((uint32_t *)params);
 
-/*
-  Blink
-  Turns on an LED on for one second, then off for one second, repeatedly.
-    
-  If you want to know what pin the on-board LED is connected to on your ESP32 model, check
-  the Technical Specs of your board.
-*/
-
-  // initialize digital LED_BUILTIN on pin 13 as an output.
   pinMode(LED_BUILTIN, OUTPUT);
 
-  for (;;){ // A Task shall never return or exit.
-    digitalWrite(LED_BUILTIN, HIGH);   // turn the LED on (HIGH is the voltage level)
-    // arduino-esp32 has FreeRTOS configured to have a tick-rate of 1000Hz and portTICK_PERIOD_MS
-    // refers to how many milliseconds the period between each ticks is, ie. 1ms.
+  for (;;)
+  {
+    digitalWrite(LED_BUILTIN, HIGH);
     delay(blink_delay);
-    digitalWrite(LED_BUILTIN, LOW);    // turn the LED off by making the voltage LOW
+    digitalWrite(LED_BUILTIN, LOW);
     delay(blink_delay);
   }
 }
 
-void TaskAnalogRead(void *pvParameters){  // This is a task.
-  (void) pvParameters;
-  // Check if the given analog pin is usable - if not - delete this task
-  if(!adcAttachPin(ANALOG_INPUT_PIN)){
-    Serial.printf("TaskAnalogRead cannot work because the given pin %d cannot be used for ADC - the task will delete itself.\n", ANALOG_INPUT_PIN);
-    analog_read_task_handle = NULL; // Prevent calling vTaskDelete on non-existing task
-    vTaskDelete(NULL); // Delete this task
-  }
-  
-/*
-  AnalogReadSerial
-  Reads an analog input on pin A3, prints the result to the serial monitor.
-  Graphical representation is available using serial plotter (Tools > Serial Plotter menu)
-  Attach the center pin of a potentiometer to pin A3, and the outside pins to +5V and ground.
+/**
+ * Task: Read hall sensors.
+ */
+void TaskReadHallSensors(void *params) {
+  (void) params;
 
-  This example code is in the public domain.
-*/
-
-  for (;;){
-    // read the input on analog pin:
-    int sensorValue = analogRead(ANALOG_INPUT_PIN);
-    // print out the value you read:
-    Serial.println(sensorValue);
-    delay(100); // 100ms delay
+  if (!adcAttachPin(RHALL_PIN)) {
+    Serial.printf("TaskReadHallSensors cannot work because the given pin %d cannot be used for ADC - the task will delete itself.\n", RHALL_PIN);
+    analog_read_task_handle = NULL;
+    vTaskDelete(NULL);
   }
+
+  for (;;)
+  {
+    int rHallValue = analogRead(RHALL_PIN);
+    Serial.println(rHallValue);
+    vTaskDelay(HALL_POLL_MS / portTICK_PERIOD_MS);
+  }
+}
+
+/**
+ * Task: monitor the WiFi connection and keep it alive!
+ * 
+ * When a WiFi connection is established, this task will check it every 10 seconds 
+ * to make sure it's still alive.
+ * 
+ * If not, a reconnect is attempted. If this fails to finish within the timeout,
+ * the ESP32 will wait for it to recover and try again.
+ */
+void TaskKeepWiFiAlive(void *params) {
+  (void) params;
+
+  for(;;)
+  {
+    // check WiFi status regularly
+    if (WiFi.status() == WL_CONNECTED) {
+      vTaskDelay(WIFI_POLL_MS / portTICK_PERIOD_MS);
+      continue;
+    }
+
+    Serial.println("[WIFI] Connecting...");
+    WiFi.mode(WIFI_STA);
+    WiFi.begin(NETWORK_NAME, NETWORK_PASSWORD);
+
+    unsigned long startAttemptTime = millis();
+
+    // keep looping while we're not connected and haven't reached the timeout
+    while (WiFi.status() != WL_CONNECTED && (millis() - startAttemptTime) < WIFI_TIMEOUT_MS) {}
+
+    // when we couldn't make a WiFi connection (or the timeout expired),
+    // sleep for a while and then retry
+    if (WiFi.status() != WL_CONNECTED) {
+      Serial.println("[WIFI] FAILED");
+      vTaskDelay(WIFI_RECOVER_TIME_MS / portTICK_PERIOD_MS);
+      continue;
+    }
+
+    Serial.print("[WIFI] Connected: ");
+    Serial.println(WiFi.localIP());
+
+    // connect to the server using UDP
+    if (udp.connect(g_server_addr, g_server_port)) {
+      Serial.println("UDP connected");
+
+      // register receive callback when server sends a packet
+      udp.onPacket([](AsyncUDPPacket packet) {
+        // packet.data(), packet.length()
+
+        Serial.println("Packet received from server!");
+
+        if (packet.length() == 0)
+          return;
+
+        // separate command key and value from the command byte
+        uint8_t cmd_byte = packet.data()[0];
+        uint8_t cmd_key = cmd_byte >> 4;
+        uint8_t cmd_value = cmd_byte & 0b1111;
+
+        // TODO: use handle table (interface?):
+        // 0 => motorControl
+        // 1 => speedControl
+        // 2 => taskControl
+        switch (cmd_key) {
+          case 0:
+            motorControl(cmd_value);
+            break;
+          case 1:
+            speedControl(cmd_value);
+            break;
+          case 2:
+            taskControl(cmd_value);
+            break;
+          default:
+            break;
+        }
+      });
+
+      // send a unicast message right after connecting
+      udp.print("Hello Server!");
+    }
+  }
+}
+
+
+
+
+
+
+
+
+// TODO: Add a small stop delay when changing directions!
+/**
+ * Left track forward.
+ */
+void leftTrackFW()
+{
+  digitalWrite(L1_PIN, HIGH);
+  digitalWrite(L2_PIN, LOW);
+  analogWrite(LEN_PIN, g_speed);
+}
+
+/**
+ * Left track backward.
+ */
+void leftTrackBW()
+{
+  digitalWrite(L1_PIN, LOW);
+  digitalWrite(L2_PIN, HIGH);
+  analogWrite(LEN_PIN, g_speed);
+}
+
+/**
+ * Left track stop.
+ */
+void leftTrackStop()
+{
+  digitalWrite(L1_PIN, LOW);
+  digitalWrite(L2_PIN, LOW);
+  analogWrite(LEN_PIN, 0);
+}
+
+/**
+ * Right track forward.
+ */
+void rightTrackFW()
+{
+  digitalWrite(R1_PIN, HIGH);
+  digitalWrite(R2_PIN, LOW);
+  analogWrite(REN_PIN, g_speed);
+}
+
+/**
+ * Right track backward.
+ */
+void rightTrackBW()
+{
+  digitalWrite(R1_PIN, LOW);
+  digitalWrite(R2_PIN, HIGH);
+  analogWrite(REN_PIN, g_speed);
+}
+
+/**
+ * Right track stop.
+ */
+void rightTrackStop()
+{
+  digitalWrite(R1_PIN, LOW);
+  digitalWrite(R2_PIN, LOW);
+  analogWrite(REN_PIN, 0);
+}
+
+/**
+ * Motor control.
+ */
+void motorControl(uint8_t cmd_byte)
+{
+  if (cmd_byte >= 16)
+    return;
+
+  //Serial.print("C> left track: ");
+  switch ((cmd_byte & 0b1100) >> 2) {
+    case 1:
+      //Serial.print("forward");
+      leftTrackFW();
+      break;
+    case 2:
+      //Serial.print("backward");
+      leftTrackBW();
+      break;
+    case 3:
+      //Serial.print("stop");
+      leftTrackStop();
+      break;
+    default:
+      //Serial.print("[none]");
+      break;
+  }
+
+  //Serial.print(", right track: ");
+  switch ((cmd_byte & 0b0011) >> 0) {
+    case 1:
+      //Serial.print("forward");
+      rightTrackFW();
+      break;
+    case 2:
+      //Serial.print("backward");
+      rightTrackBW();
+      break;
+    case 3:
+      //Serial.print("stop");
+      rightTrackStop();
+      break;
+    default:
+      //Serial.print("[none]");
+      break;
+  }
+
+    //Serial.println();
+}
+
+/**
+ * Speed control.
+ */
+void speedControl(uint8_t speed_byte)
+{
+  if (speed_byte >= 16)
+    return;
+
+  g_speed = speed_map[speed_byte];
+  //Serial.print("C> speed set to: ");
+  //Serial.println(g_speed);
+}
+
+/**
+ * Task control.
+ */
+void taskControl(uint8_t task_byte)
+{
+  if (task_byte >= 16)
+    return;
+
+  //g_should_measure = task_byte == 1;
+  //Serial.print("C> measurement control set to: ");
+  //Serial.println(g_should_measure ? 'active' : 'inactive');
 }
