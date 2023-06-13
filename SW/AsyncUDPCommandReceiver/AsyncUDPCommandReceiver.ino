@@ -1,6 +1,7 @@
 //#include <Ticker.h>
 #include "WiFi.h"
 #include "AsyncUDP.h"
+#include "network_credentials.h"
 
 // Pin assignments
 
@@ -23,10 +24,6 @@
 #define MEAS_BUFSIZE 4  // Measurement buffer size
 #define MSG_BUFSIZE 64  // Maximum length of an outgoing server message
 
-// WiFi network credentials
-const char * ssid = "";
-const char * password = "";
-
 // server address
 IPAddress g_server_addr(192, 168, 1, 168);
 uint16_t g_server_port = 3333;
@@ -46,7 +43,7 @@ void setup()
 {
   Serial.begin(115200);
   WiFi.mode(WIFI_STA);
-  WiFi.begin(ssid, password);
+  WiFi.begin(NETWORK_NAME, NETWORK_PASSWORD);
   if (WiFi.waitForConnectResult() != WL_CONNECTED) {
       Serial.println("WiFi Failed");
       while(1) {
@@ -62,7 +59,7 @@ void setup()
     udp.onPacket([](AsyncUDPPacket packet) {
       // packet.data(), packet.length()
 
-      Serial.println("Packet received from server!");
+      //Serial.println("Packet received from server!");
 
       if (packet.length() == 0)
         return;
@@ -116,14 +113,14 @@ void loop()
   //digitalWrite(BLINKER_PIN, LOW);
   //delay(1000);
 
-  uint16_t left_hall = analogRead(LHALL_PIN);
-  uint16_t right_hall = analogRead(RHALL_PIN);
-  Serial.print("left: ");
-  Serial.print(left_hall);
-  Serial.print(", right: ");
-  Serial.print(right_hall);
-  Serial.println();
-  delay(100);
+  //uint16_t left_hall = analogRead(LHALL_PIN);
+  //uint16_t right_hall = analogRead(RHALL_PIN);
+  //Serial.print("left: ");
+  //Serial.print(left_hall);
+  //Serial.print(", right: ");
+  //Serial.print(right_hall);
+  //Serial.println();
+  //delay(100);
 
 #if 0
 #define TEMPBUF_SZ 10
@@ -244,45 +241,45 @@ void motorControl(uint8_t cmd_byte)
   if (cmd_byte >= 16)
     return;
 
-  Serial.print("C> left track: ");
+  //Serial.print("C> left track: ");
   switch ((cmd_byte & 0b1100) >> 2) {
     case 1:
-      Serial.print("forward");
+      //Serial.print("forward");
       leftTrackFW();
       break;
     case 2:
-      Serial.print("backward");
+      //Serial.print("backward");
       leftTrackBW();
       break;
     case 3:
-      Serial.print("stop");
+      //Serial.print("stop");
       leftTrackStop();
       break;
     default:
-      Serial.print("[none]");
+      //Serial.print("[none]");
       break;
   }
 
-  Serial.print(", right track: ");
+  //Serial.print(", right track: ");
   switch ((cmd_byte & 0b0011) >> 0) {
     case 1:
-      Serial.print("forward");
+      //Serial.print("forward");
       rightTrackFW();
       break;
     case 2:
-      Serial.print("backward");
+      //Serial.print("backward");
       rightTrackBW();
       break;
     case 3:
-      Serial.print("stop");
+      //Serial.print("stop");
       rightTrackStop();
       break;
     default:
-      Serial.print("[none]");
+      //Serial.print("[none]");
       break;
   }
 
-    Serial.println();
+    //Serial.println();
 }
 
 /**
@@ -294,8 +291,8 @@ void speedControl(uint8_t speed_byte)
     return;
 
   g_speed = speed_map[speed_byte];
-  Serial.print("C> speed set to: ");
-  Serial.println(g_speed);
+  //Serial.print("C> speed set to: ");
+  //Serial.println(g_speed);
 }
 
 /**
@@ -307,8 +304,8 @@ void taskControl(uint8_t task_byte)
     return;
 
   g_should_measure = task_byte == 1;
-  Serial.print("C> measurement control set to: ");
-  Serial.println(g_should_measure ? 'active' : 'inactive');
+  //Serial.print("C> measurement control set to: ");
+  //Serial.println(g_should_measure ? 'active' : 'inactive');
 }
 
 //void sendMessage(std::string message)
