@@ -2,7 +2,8 @@ import sys, socket, select
 from math import ceil
 from PyQt5.QtCore import Qt, QTimer, QEvent, pyqtSignal
 from PyQt5.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QHBoxLayout, QWidget, QLineEdit, QPushButton, QLabel, QTextBrowser, QStatusBar, QMessageBox, QDialog
-from PyQt5.QtGui import QFont, QKeySequence
+from PyQt5.QtGui import QFont, QKeySequence, QTextCursor
+from log_widget import LogWidget
 
 SERVER_ADDR = "192.168.1.168"
 SERVER_PORT = 3333
@@ -101,10 +102,10 @@ class DashboardApplication(QMainWindow):
         mono_font = QFont()
         mono_font.setFamilies([u"Consolas"])
 
-        # message viewer
-        self.message_viewer = QTextBrowser()
-        main_layout.addWidget(self.message_viewer)
-        self.message_viewer.setFont(mono_font)
+        # log viewer
+        self.log_widget = LogWidget(self)
+        self.log_widget.verticalHeader().setDefaultSectionSize(100)
+        main_layout.addWidget(self.log_widget)
 
         # message box
         self.messagebox_widget = QWidget()
@@ -134,24 +135,23 @@ class DashboardApplication(QMainWindow):
         self.setStatusBar(self.statusbar)
         self.statusbar.showMessage("Waiting for connection...")
 
-        self.messages = []
+        self.log("Server", "Control", f"Server started at {SERVER_ADDR}:{SERVER_PORT}.")
 
         self.start_server()
+
+    def log(self, source, log_type, content):
+        self.log_widget.add_row(source, log_type, content)
 
     def handle_message_send(self):
         # Get the message from the text edit
         message = self.message_field.text()
-        self.send_message( int(message, 2).to_bytes(ceil(len(message) / 8), 'little') )
+        try:
+            self.send_message( int(message, 2).to_bytes(ceil(len(message) / 8), 'little') )
+        except ValueError:
+            return self.show_error_dialog("The message must be in binary!")
+
         # Clear the text edit
         self.message_field.clear()
-
-    def update_message_viewer(self):
-        # Clear the text browser
-        self.message_viewer.clear()
-
-        # Display all chat messages in the text browser
-        for message in self.messages:
-            self.message_viewer.append(message)
 
     def update_status_bar(self, text):
         # Update the text of the status bar
@@ -187,24 +187,17 @@ class DashboardApplication(QMainWindow):
                     self.client_addr = addr
                     self.client_connected = True
                     self.update_status_bar(f"Client connected: {self.client_addr[0]}:{self.client_addr[1]}")
-                    self.messages.append(f"Client connected: {self.client_addr[0]}:{self.client_addr[1]}")
+                    self.log("Client", "Network", f"Client connected: {self.client_addr[0]}:{self.client_addr[1]}")
 
-                self.messages.append(f"Received message from {addr}: {message}")
-                self.update_message_viewer()
+                self.log("Client", "Data", f"Received: {message}")
 
     # TODO: Move server stuff to a separate module!
     def send_message(self, message):
         if not self.client_connected:
-            self.show_error_dialog("Cannot send a message before a client is connected!")
-            return
+            return self.show_error_dialog("Cannot send a message before a client is connected!")
 
         self.server_sock.sendto(bytes(message), self.client_addr)
-
-        # Append sent message to chat messages list
-        self.messages.append("Sent: " + str(message))
-
-        # Update text in the text browser
-        self.update_message_viewer()
+        self.log("Server", "Data", "Sent: " + str(message))
 
     def show_keycap_dialog(self):
         # Create an instance of the custom dialog
