@@ -54,3 +54,6 @@ dkms.conf
 # Never include the actual network credentials
 **NetworkCredentials.h
 **network_credentials.h
+
+# Python
+*__pycache__
