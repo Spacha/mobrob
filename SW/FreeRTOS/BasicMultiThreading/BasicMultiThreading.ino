@@ -21,7 +21,7 @@
 #define LHALL_PIN   35  // Left track hall sensor
 #define RHALL_PIN   34  // Right track hall sensor
 
-#define UT_TRIG_PIN  4   // Ultrasonic sensor trigger
+#define UT_TRIG_PIN  4  // Ultrasonic sensor trigger
 #define UT_ECHO_PIN 23  // Ultrasonic sensor echo
 
 #define L1_PIN      25  // Left motor control 1
@@ -64,16 +64,16 @@ void setup() {
     "Blink",                      // Task name
     2048,                         // Stack size (bytes)
     (void *)&blink_delay,         // Parameter
-    2,                            // Task priority
+    5,                            // Task priority
     NULL                          // Task handle
   );
 
   xTaskCreatePinnedToCore(
     TaskReadHallSensors,
-    "AnalogRead",                 // Task name
+    "ReadHallSensors",            // Task name
     2048,                         // Stack size (bytes)
     NULL,                         // Parameter
-    1,                            // Task priority
+    2,                            // Task priority
     &analog_read_task_handle,     // Task handle
     ARDUINO_RUNNING_CORE
   );
@@ -87,6 +87,15 @@ void setup() {
     NULL,                         // Task handle
     ARDUINO_RUNNING_CORE
   );
+
+  pinMode(UT_TRIG_PIN, OUTPUT);
+  pinMode(UT_ECHO_PIN, INPUT);
+  pinMode(L1_PIN, OUTPUT);
+  pinMode(L2_PIN, OUTPUT);
+  pinMode(LEN_PIN, OUTPUT);
+  pinMode(R1_PIN, OUTPUT);
+  pinMode(R2_PIN, OUTPUT);
+  pinMode(REN_PIN, OUTPUT);
 
   Serial.println("Initialized.");
 }
@@ -129,16 +138,18 @@ void TaskBlink(void *params) {
 void TaskReadHallSensors(void *params) {
   (void) params;
 
-  if (!adcAttachPin(RHALL_PIN)) {
-    Serial.printf("TaskReadHallSensors cannot work because the given pin %d cannot be used for ADC - the task will delete itself.\n", RHALL_PIN);
+  if (!adcAttachPin(LHALL_PIN) || !adcAttachPin(RHALL_PIN)) {
+    Serial.printf("TaskReadHallSensors cannot work because the given pin %d or %d cannot be used for ADC - the task will delete itself.\n", LHALL_PIN, RHALL_PIN);
     analog_read_task_handle = NULL;
     vTaskDelete(NULL);
   }
 
   for (;;)
   {
+    int lHallValue = analogRead(LHALL_PIN);
     int rHallValue = analogRead(RHALL_PIN);
-    Serial.println(rHallValue);
+    //Serial.println(lHallValue);
+    //Serial.println(rHallValue);
     vTaskDelay(HALL_POLL_MS / portTICK_PERIOD_MS);
   }
 }
@@ -302,45 +313,45 @@ void motorControl(uint8_t cmd_byte)
   if (cmd_byte >= 16)
     return;
 
-  //Serial.print("C> left track: ");
+  Serial.print("C> left track: ");
   switch ((cmd_byte & 0b1100) >> 2) {
     case 1:
-      //Serial.print("forward");
+      Serial.print("forward");
       leftTrackFW();
       break;
     case 2:
-      //Serial.print("backward");
+      Serial.print("backward");
       leftTrackBW();
       break;
     case 3:
-      //Serial.print("stop");
+      Serial.print("stop");
       leftTrackStop();
       break;
     default:
-      //Serial.print("[none]");
+      Serial.print("[none]");
       break;
   }
 
-  //Serial.print(", right track: ");
+  Serial.print(", right track: ");
   switch ((cmd_byte & 0b0011) >> 0) {
     case 1:
-      //Serial.print("forward");
+      Serial.print("forward");
       rightTrackFW();
       break;
     case 2:
-      //Serial.print("backward");
+      Serial.print("backward");
       rightTrackBW();
       break;
     case 3:
-      //Serial.print("stop");
+      Serial.print("stop");
       rightTrackStop();
       break;
     default:
-      //Serial.print("[none]");
+      Serial.print("[none]");
       break;
   }
 
-    //Serial.println();
+    Serial.println();
 }
 
 /**
