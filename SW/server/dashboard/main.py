@@ -1,9 +1,12 @@
 import sys, socket, select
 from math import ceil
 from PyQt5.QtCore import Qt, QTimer, QEvent, pyqtSignal
-from PyQt5.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QHBoxLayout, QWidget, QLineEdit, QPushButton, QLabel, QTextBrowser, QStatusBar, QMessageBox, QDialog
+from PyQt5.QtWidgets import (QApplication, QMainWindow, QVBoxLayout, QHBoxLayout, QSplitter,
+                             QWidget, QLineEdit, QPushButton, QLabel, QStatusBar, QMessageBox,
+                             QDialog)
 from PyQt5.QtGui import QFont, QKeySequence, QTextCursor
 from log_widget import LogWidget
+from map_widget import MapWidget
 
 SERVER_ADDR = "192.168.1.168"
 SERVER_PORT = 3333
@@ -51,13 +54,12 @@ class KeycapDialog(QDialog):
 
         self.resize(140, 70)
 
-        # Set up the UI
+        # set up the UI
         layout = QVBoxLayout()
         self.label = QLabel('Press a key...')
         layout.addWidget(self.label)
         self.setLayout(layout)
 
-        # Connect the keyPressEvent to a slot
         self.keyPressEvent = self.key_event
         self.keyReleaseEvent = self.key_event
 
@@ -84,38 +86,44 @@ class KeycapDialog(QDialog):
     def whitelist_keys(self, keys):
         self.key_whitelist = keys
 
-
 class DashboardApplication(QMainWindow):
     def __init__(self):
         super(DashboardApplication, self).__init__()
 
-        # Set initial size
         self.resize(960, 640)
-
         self.setWindowTitle("Mobrob server")
-
-        central_widget = QWidget()
-        self.setCentralWidget(central_widget)
-        main_layout = QVBoxLayout()
 
         # monospace font
         mono_font = QFont()
         mono_font.setFamilies([u"Consolas"])
 
+        main_layout = QHBoxLayout()
+        main_splitter = QSplitter(Qt.Horizontal)
+
+        ###################################################
+        # Left pane
+        ###################################################
+
+        left_pane_layout = QVBoxLayout()
+        left_pane_widget = QWidget()
+        left_pane_widget.setLayout(left_pane_layout)
+
         # log viewer
         self.log_widget = LogWidget(self)
         self.log_widget.verticalHeader().setDefaultSectionSize(100)
-        main_layout.addWidget(self.log_widget)
+        left_pane_layout.addWidget(self.log_widget)
+        left_pane_layout.setStretchFactor(self.log_widget, 1)
+        left_pane_layout.setContentsMargins(0, 0, 0, 0)
 
         # message box
         self.messagebox_widget = QWidget()
-        main_layout.addWidget(self.messagebox_widget)
+        left_pane_layout.addWidget(self.messagebox_widget)
         messagebox_layout = QHBoxLayout()
         messagebox_layout.setContentsMargins(0, -1, 0, -1)
 
         keycap_button = QPushButton("Key capture")
         keycap_button.clicked.connect(self.show_keycap_dialog)
-        messagebox_layout.addWidget(keycap_button)
+        left_pane_layout.addWidget(keycap_button)
 
         self.message_field = QLineEdit()
         messagebox_layout.addWidget(self.message_field)
@@ -128,7 +136,26 @@ class DashboardApplication(QMainWindow):
 
         self.messagebox_widget.setLayout(messagebox_layout)
 
+        main_splitter.addWidget(left_pane_widget)
+
+        ###################################################
+        # Right pane
+        ###################################################
+
+        # map viewer
+        self.map_widget = MapWidget(self)
+        main_splitter.addWidget(self.map_widget)
+
+        ###################################################
+        # Main layout
+        ###################################################
+
+        main_splitter.setSizes([400, 500])
+        main_layout.addWidget(main_splitter)
+
+        central_widget = QWidget()
         central_widget.setLayout(main_layout)
+        self.setCentralWidget(central_widget)
 
         # statusbar
         self.statusbar = QStatusBar(self)
@@ -143,18 +170,15 @@ class DashboardApplication(QMainWindow):
         self.log_widget.add_row(source, log_type, content)
 
     def handle_message_send(self):
-        # Get the message from the text edit
         message = self.message_field.text()
         try:
             self.send_message( int(message, 2).to_bytes(ceil(len(message) / 8), 'little') )
         except ValueError:
             return self.show_error_dialog("The message must be in binary!")
 
-        # Clear the text edit
         self.message_field.clear()
 
     def update_status_bar(self, text):
-        # Update the text of the status bar
         self.statusbar.showMessage(text)
 
     # TODO: Move server stuff to a separate module!
@@ -166,14 +190,14 @@ class DashboardApplication(QMainWindow):
         self.client_connected = False
         self.client_addr = None
 
-        # Create a QTimer to periodically check for incoming messages
+        # create a QTimer to periodically check for incoming messages
         self.timer = QTimer()
         self.timer.timeout.connect(self.receive_messages)
         self.timer.start(100)  # Check for incoming messages every 100 milliseconds
 
     # TODO: Move server stuff to a separate module!
     def receive_messages(self):
-        # Check for incoming messages using select
+        # check for incoming messages using select
         ready_sockets, _, _ = select.select([self.server_sock], [], [], 0)
 
         for socket in ready_sockets:
@@ -200,7 +224,7 @@ class DashboardApplication(QMainWindow):
         self.log("Server", "Data", "Sent: " + str(message))
 
     def show_keycap_dialog(self):
-        # Create an instance of the custom dialog
+        # create an instance of the custom dialog
         keycap_dialog = KeycapDialog(self)
         keycap_dialog.whitelist_keys(keymap.values())
 
