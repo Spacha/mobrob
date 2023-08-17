@@ -90,7 +90,7 @@ class DashboardApplication(QMainWindow):
         super(DashboardApplication, self).__init__()
 
         # Set initial size
-        self.resize(640, 430)
+        self.resize(960, 640)
 
         self.setWindowTitle("Mobrob server")
 
