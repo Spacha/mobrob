@@ -7,35 +7,38 @@
 //#include "driving.h"
 
 #if CONFIG_FREERTOS_UNICORE
-  #define ARDUINO_RUNNING_CORE 0
+#define ARDUINO_RUNNING_CORE 0
 #else
-  #define ARDUINO_RUNNING_CORE 1
+#define ARDUINO_RUNNING_CORE 1
 #endif
 
 // Pin assignments
 
 #ifndef LED_BUILTIN
-  #define LED_BUILTIN 27
+#define LED_BUILTIN 14
 #endif
 
-#define LHALL_PIN   35  // Left track hall sensor
-#define RHALL_PIN   34  // Right track hall sensor
+#define LHALL_PIN 39  // Left track hall sensor
+#define RHALL_PIN 36  // Right track hall sensor
 
-#define UT_TRIG_PIN  4  // Ultrasonic sensor trigger
+#define UT_TRIG_PIN 4   // Ultrasonic sensor trigger
 #define UT_ECHO_PIN 23  // Ultrasonic sensor echo
 
-#define L1_PIN      25  // Left motor control 1
-#define L2_PIN      13  // Left motor control 2
-#define LEN_PIN     26  // Left motor enable
-#define R1_PIN      32  // Right motor control 1
-#define R2_PIN      12  // Right motor control 2
-#define REN_PIN     33  // Right motor enable
+#define L1_PIN 25   // Left motor control 1
+#define L2_PIN 13   // Left motor control 2
+#define LEN_PIN 26  // Left motor enable
+#define R1_PIN 32   // Right motor control 1
+#define R2_PIN 12   // Right motor control 2
+#define REN_PIN 33  // Right motor enable
 
 #define WIFI_POLL_MS          10000
 #define WIFI_TIMEOUT_MS       20000
 #define WIFI_RECOVER_TIME_MS  30000
 
-#define HALL_POLL_MS          5
+#define HALL_POLL_MS          1
+#define SEND_DATA_MS          1000
+#define BLINK_CONNECTING_MS   250
+#define BLINK_CONNECTED_MS    1000
 
 // speed for both tracks
 uint8_t g_speed = 180;
@@ -47,46 +50,62 @@ uint8_t speed_map[16] = { 0, 0, 0, 130, 140, 150, 160, 170, 180, 190, 200, 210, 
 IPAddress g_server_addr(192, 168, 1, 168);
 uint16_t g_server_port = 3333;
 AsyncUDP udp;
+bool udp_connected = false;
+
+//#define NUM_MEASUREMENTS 8192
+//uint16_t measurements[NUM_MEASUREMENTS] = {0};
+//uint32_t data_buffer[64] = {0};
+//int data_buffer_idx = 0;
+int lcycle_delta = 0;
+int rcycle_delta = 0;
 
 // task definitions
 void TaskBlink(void *params);
 void TaskReadHallSensors(void *params);
 void TaskKeepWifiAlive(void *params);
+void TaskSendData(void *params);
 
 TaskHandle_t analog_read_task_handle;
 
 void setup() {
   Serial.begin(115200);
 
-  uint32_t blink_delay = 1000;
+  //uint32_t blink_delay = 1000;
   xTaskCreate(
     TaskBlink,
-    "Blink",                      // Task name
-    2048,                         // Stack size (bytes)
-    (void *)&blink_delay,         // Parameter
-    5,                            // Task priority
-    NULL                          // Task handle
+    "Blink",               // Task name
+    2048,                  // Stack size (bytes)
+    NULL, //(void *)&blink_delay,  // Parameter
+    5,                     // Task priority
+    NULL                   // Task handle
   );
 
   xTaskCreatePinnedToCore(
     TaskReadHallSensors,
-    "ReadHallSensors",            // Task name
-    2048,                         // Stack size (bytes)
-    NULL,                         // Parameter
-    2,                            // Task priority
-    &analog_read_task_handle,     // Task handle
-    ARDUINO_RUNNING_CORE
-  );
+    "ReadHallSensors",         // Task name
+    2048,                      // Stack size (bytes)
+    NULL,                      // Parameter
+    1,                         // Task priority
+    &analog_read_task_handle,  // Task handle
+    ARDUINO_RUNNING_CORE);
 
   xTaskCreatePinnedToCore(
     TaskKeepWiFiAlive,
-    "KeepWiFiAlive",              // Task name
-    5000,                         // Stack size (bytes)
-    NULL,                         // Parameter
-    1,                            // Task priority
-    NULL,                         // Task handle
-    ARDUINO_RUNNING_CORE
-  );
+    "KeepWiFiAlive",  // Task name
+    5000,             // Stack size (bytes)
+    NULL,             // Parameter
+    2,                // Task priority
+    NULL,             // Task handle
+    ARDUINO_RUNNING_CORE);
+
+  xTaskCreatePinnedToCore(
+    TaskSendData,
+    "TaskSendData",   // Task name
+    5000,             // Stack size (bytes)
+    NULL,             // Parameter
+    2,                // Task priority
+    NULL,             // Task handle
+    ARDUINO_RUNNING_CORE);
 
   pinMode(UT_TRIG_PIN, OUTPUT);
   pinMode(UT_ECHO_PIN, INPUT);
@@ -119,16 +138,23 @@ void loop() {
  * and/or using an RGB LED.
  */
 void TaskBlink(void *params) {
-  uint32_t blink_delay = *((uint32_t *)params);
+  //uint32_t blink_delay = *((uint32_t *)params);
+  (void)params;
 
   pinMode(LED_BUILTIN, OUTPUT);
 
-  for (;;)
-  {
+  for (;;) {
     digitalWrite(LED_BUILTIN, HIGH);
-    delay(blink_delay);
+    if (udp_connected)
+      delay(BLINK_CONNECTED_MS);
+    else
+      delay(BLINK_CONNECTING_MS);
+
     digitalWrite(LED_BUILTIN, LOW);
-    delay(blink_delay);
+    if (udp_connected)
+      delay(BLINK_CONNECTED_MS);
+    else
+      delay(BLINK_CONNECTING_MS);
   }
 }
 
@@ -136,21 +162,138 @@ void TaskBlink(void *params) {
  * Task: Read hall sensors.
  */
 void TaskReadHallSensors(void *params) {
-  (void) params;
+  (void)params;
 
-  if (!adcAttachPin(LHALL_PIN) || !adcAttachPin(RHALL_PIN)) {
-    Serial.printf("TaskReadHallSensors cannot work because the given pin %d or %d cannot be used for ADC - the task will delete itself.\n", LHALL_PIN, RHALL_PIN);
-    analog_read_task_handle = NULL;
-    vTaskDelete(NULL);
-  }
+  //if (!adcAttachPin(LHALL_PIN) || !adcAttachPin(RHALL_PIN)) {
+  //  Serial.printf("TaskReadHallSensors cannot work because the given pin %d or %d cannot be used for ADC - the task will delete itself.\n", LHALL_PIN, RHALL_PIN);
+  //  analog_read_task_handle = NULL;
+  //  vTaskDelete(NULL);
+  //}
 
-  for (;;)
-  {
+#define HALL_UPPER 3300 // 4050
+#define HALL_LOWER 2600 // 3800
+
+#if 0
+  int pin = LHALL_PIN;
+  for (;;) {
+    int a = analogRead(pin);
+    if (a >= HALL_UPPER) {
+      Serial.print(" UP ");
+    } else if (a <= HALL_LOWER) {
+      Serial.print("DOWN");
+    } else {
+      Serial.print("    ");
+    }
+
+    delay(1);
+
+    if (pin == LHALL_PIN) {
+      pin = RHALL_PIN;
+      Serial.print(" ");
+    } else {
+      pin = LHALL_PIN;
+      Serial.println("\n");
+      delay(90);
+    }
+#endif
+
+  int lup_cnt = 0;
+  int ldown_cnt = 0;
+  delay(100);
+  bool lis_up = analogRead(LHALL_PIN) >= HALL_UPPER;
+
+  int rup_cnt = 0;
+  int rdown_cnt = 0;
+  delay(100);
+  bool ris_up = analogRead(RHALL_PIN) >= HALL_UPPER;
+
+  // TODO: Use convolution (https://youtu.be/oeyW9x7r2Xw)
+
+  for (;;) {
+    delay(1);
     int lHallValue = analogRead(LHALL_PIN);
+
+    if (lis_up) {
+      if (lHallValue <= HALL_LOWER) {
+        ldown_cnt++;
+        if (ldown_cnt >= 3) {
+          lis_up = false;
+          ldown_cnt = 0;
+          lcycle_delta += 1;
+        }
+      }
+    } else {
+      if (lHallValue >= HALL_UPPER) {
+        lup_cnt++;
+        if (lup_cnt >= 3) {
+          lis_up = true;
+          lup_cnt = 0;
+          lcycle_delta += 1;
+        }
+      }
+    }
+
+    delay(1);
     int rHallValue = analogRead(RHALL_PIN);
+
+    if (ris_up) {
+      if (rHallValue <= HALL_LOWER) {
+        rdown_cnt++;
+        if (rdown_cnt >= 3) {
+          ris_up = false;
+          rdown_cnt = 0;
+          rcycle_delta += 1;
+        }
+      }
+    } else {
+      if (rHallValue >= HALL_UPPER) {
+        rup_cnt++;
+        if (rup_cnt >= 3) {
+          ris_up = true;
+          rup_cnt = 0;
+          rcycle_delta += 1;
+        }
+      }
+    }
+
+#if 0
+  bool isDown = analogRead(RHALL_PIN) <= HALL_LOWER;
+
+  int measurementIdx = 0;
+
+  for (;;) {
+    int rHallValue = analogRead(RHALL_PIN);
+
+    if (measurementIdx >= NUM_MEASUREMENTS) {
+      Serial.println("Batch:");
+      Serial.println(0);
+      Serial.println(0);
+      for (int i = 0; i < NUM_MEASUREMENTS; i++) {
+        Serial.println(measurements[i]);
+        measurements[i] = 0;
+      }
+      measurementIdx = 0;
+    }
+
+    measurements[measurementIdx] = (uint16_t)rHallValue;
+    measurementIdx += 1;
+#endif
+
+#if 0
+    if (lHallValue <= HALL_LOWER) {
+      if (!isDown) {
+        Serial.println("Cycle!");
+      }
+      isDown = true;
+    } else if (lHallValue >= HALL_UPPER) {
+      if (isDown) {}
+      isDown = false;
+    }
+#endif
+    //int rHallValue = analogRead(RHALL_PIN);
     //Serial.println(lHallValue);
     //Serial.println(rHallValue);
-    vTaskDelay(HALL_POLL_MS / portTICK_PERIOD_MS);
+    //vTaskDelay(HALL_POLL_MS / portTICK_PERIOD_MS);
   }
 }
 
@@ -164,10 +307,9 @@ void TaskReadHallSensors(void *params) {
  * the ESP32 will wait for it to recover and try again.
  */
 void TaskKeepWiFiAlive(void *params) {
-  (void) params;
+  (void)params;
 
-  for(;;)
-  {
+  for (;;) {
     // check WiFi status regularly
     if (WiFi.status() == WL_CONNECTED) {
       vTaskDelay(WIFI_POLL_MS / portTICK_PERIOD_MS);
@@ -197,6 +339,7 @@ void TaskKeepWiFiAlive(void *params) {
     // connect to the server using UDP
     if (udp.connect(g_server_addr, g_server_port)) {
       Serial.println("UDP connected");
+      udp_connected = true;
 
       // register receive callback when server sends a packet
       udp.onPacket([](AsyncUDPPacket packet) {
@@ -237,7 +380,25 @@ void TaskKeepWiFiAlive(void *params) {
   }
 }
 
+/**
+ * Task: Send messages in the buffer.
+ */
+void TaskSendData(void *params) {
+  (void)params;
 
+  char msgbuf[16] = {0};
+
+  for (;;) {
+    if (udp_connected) {
+      sprintf(msgbuf, "(%d, %d)", lcycle_delta, rcycle_delta);
+      udp.print(msgbuf);
+      lcycle_delta = 0;
+      rcycle_delta = 0;
+    }
+
+    vTaskDelay(SEND_DATA_MS / portTICK_PERIOD_MS);
+  }
+}
 
 
 
@@ -248,8 +409,7 @@ void TaskKeepWiFiAlive(void *params) {
 /**
  * Left track forward.
  */
-void leftTrackFW()
-{
+void leftTrackFW() {
   digitalWrite(L1_PIN, HIGH);
   digitalWrite(L2_PIN, LOW);
   analogWrite(LEN_PIN, g_speed);
@@ -258,8 +418,7 @@ void leftTrackFW()
 /**
  * Left track backward.
  */
-void leftTrackBW()
-{
+void leftTrackBW() {
   digitalWrite(L1_PIN, LOW);
   digitalWrite(L2_PIN, HIGH);
   analogWrite(LEN_PIN, g_speed);
@@ -268,8 +427,7 @@ void leftTrackBW()
 /**
  * Left track stop.
  */
-void leftTrackStop()
-{
+void leftTrackStop() {
   digitalWrite(L1_PIN, LOW);
   digitalWrite(L2_PIN, LOW);
   analogWrite(LEN_PIN, 0);
@@ -278,8 +436,7 @@ void leftTrackStop()
 /**
  * Right track forward.
  */
-void rightTrackFW()
-{
+void rightTrackFW() {
   digitalWrite(R1_PIN, HIGH);
   digitalWrite(R2_PIN, LOW);
   analogWrite(REN_PIN, g_speed);
@@ -288,8 +445,7 @@ void rightTrackFW()
 /**
  * Right track backward.
  */
-void rightTrackBW()
-{
+void rightTrackBW() {
   digitalWrite(R1_PIN, LOW);
   digitalWrite(R2_PIN, HIGH);
   analogWrite(REN_PIN, g_speed);
@@ -298,8 +454,7 @@ void rightTrackBW()
 /**
  * Right track stop.
  */
-void rightTrackStop()
-{
+void rightTrackStop() {
   digitalWrite(R1_PIN, LOW);
   digitalWrite(R2_PIN, LOW);
   analogWrite(REN_PIN, 0);
@@ -308,8 +463,7 @@ void rightTrackStop()
 /**
  * Motor control.
  */
-void motorControl(uint8_t cmd_byte)
-{
+void motorControl(uint8_t cmd_byte) {
   if (cmd_byte >= 16)
     return;
 
@@ -351,14 +505,13 @@ void motorControl(uint8_t cmd_byte)
       break;
   }
 
-    Serial.println();
+  Serial.println();
 }
 
 /**
  * Speed control.
  */
-void speedControl(uint8_t speed_byte)
-{
+void speedControl(uint8_t speed_byte) {
   if (speed_byte >= 16)
     return;
 
@@ -370,8 +523,7 @@ void speedControl(uint8_t speed_byte)
 /**
  * Task control.
  */
-void taskControl(uint8_t task_byte)
-{
+void taskControl(uint8_t task_byte) {
   if (task_byte >= 16)
     return;
 
