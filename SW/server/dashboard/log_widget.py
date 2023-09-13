@@ -1,7 +1,8 @@
 import datetime
+from PyQt5.QtGui import QContextMenuEvent
 from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import (QTableWidget, QAbstractItemView, QHeaderView, QTableWidgetItem,
-                             QDialog, QGridLayout, QLabel, QLineEdit, QTextEdit)
+                             QDialog, QGridLayout, QLabel, QLineEdit, QTextEdit, QMenu, QAction)
 
 class MessagePopup(QDialog):
     def __init__(self, log_time, log_source, log_type, log_content, parent=None):
@@ -47,7 +48,6 @@ class MessagePopup(QDialog):
         layout.addWidget(self.content_label, 3, 0)
         layout.addWidget(self.content_field, 3, 1)
         self.setLayout(layout)
-
 
 class LogWidget(QTableWidget):
     def __init__(self, parent=None):
@@ -118,3 +118,16 @@ class LogWidget(QTableWidget):
             # Create and show the message pop-up
             popup = MessagePopup(log_time, log_source, log_type, log_content, self)
             popup.exec_()
+
+    def clear_log(self):
+        self.setRowCount(0)
+        print("Log cleared.")
+
+    def contextMenuEvent(self, event):
+        context_menu = QMenu(self)
+
+        clear_log_action = QAction("Clear Log", self)
+        clear_log_action.triggered.connect(self.clear_log)
+        context_menu.addAction(clear_log_action)
+
+        context_menu.exec_(self.mapToGlobal(event.pos()))

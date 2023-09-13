@@ -3,7 +3,7 @@ from math import ceil
 from PyQt5.QtCore import Qt, QTimer, QEvent, pyqtSignal
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QVBoxLayout, QHBoxLayout, QSplitter,
                              QWidget, QLineEdit, QPushButton, QLabel, QStatusBar, QMessageBox,
-                             QDialog)
+                             QDialog, QAction)
 from PyQt5.QtGui import QFont, QKeySequence, QTextCursor
 from log_widget import LogWidget
 from map_widget import MapWidget
@@ -12,6 +12,9 @@ SERVER_ADDR = "192.168.1.168"
 SERVER_PORT = 3333
 SERVER_BUFSIZE = 64
 SERVER_TIMEOUT = 1
+
+# TODO: Bug! If the robot is already connected on bootup, the server doesn't
+#       notice, even though it receives messages normally.
 
 # Parts:
 # - GUI
@@ -157,6 +160,26 @@ class DashboardApplication(QMainWindow):
         central_widget.setLayout(main_layout)
         self.setCentralWidget(central_widget)
 
+        # menubar
+        menubar = self.menuBar()
+        file_menu = menubar.addMenu("File")
+
+        exit_action = QAction("Exit", self)
+        exit_action.setShortcut("Ctrl+Q")
+        exit_action.triggered.connect(self.close)
+        file_menu.addAction(exit_action)
+
+        log_menu = menubar.addMenu("Log")
+
+        save_log_action = QAction("Save Log", self)
+        #save_log_action.triggered.connect(self.log_widget.open_save_log_dialog)
+        save_log_action.setDisabled(True)
+        log_menu.addAction(save_log_action)
+
+        clear_log_action = QAction("Clear Log", self)
+        clear_log_action.triggered.connect(self.log_widget.clear_log)
+        log_menu.addAction(clear_log_action)
+
         # statusbar
         self.statusbar = QStatusBar(self)
         self.setStatusBar(self.statusbar)
@@ -292,7 +315,6 @@ class DashboardApplication(QMainWindow):
 
         keycap_dialog.held_keys_changed.connect(handle_held_keys_changed)
         keycap_dialog.exec_()
-
 
     def show_error_dialog(self, message):
         error_dialog = QMessageBox()
