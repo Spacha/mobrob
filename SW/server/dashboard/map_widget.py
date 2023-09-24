@@ -1,10 +1,12 @@
 from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import QWidget
-from PyQt5.QtGui import QPainter, QColor, QPen, QImage, QPainterPath
+from PyQt5.QtGui import QPainter, QColor, QPen, QImage, QPainterPath, QTransform, QFont
 
 class MapWidget(QWidget):
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, robot=None):
         super().__init__(parent)
+        self.robot = robot
+        self.font = QFont("Arial", 16)
         self.draw_robot_sprite()
 
     def draw_robot_sprite(self):
@@ -40,8 +42,15 @@ class MapWidget(QWidget):
         for point in points:
             painter.drawPoint(*point)
 
+        # rotate the robot sprite
+        rotation_transform = QTransform().rotate(self.robot.angle)
+        rotated_sprite = self.robot_sprite_buffer.transformed(rotation_transform)
+
         # draw the robot sprite
-        painter.drawImage(self.width() // 2, self.height() // 2, self.robot_sprite_buffer)
+        painter.drawImage(self.width() // 2 - rotated_sprite.width() // 2, self.height() // 2 - rotated_sprite.height() // 2, rotated_sprite)
+
+        painter.setFont(self.font)
+        painter.drawText(self.width() // 2, self.height() - 30, f"Angle: {round(self.robot.angle, 1)} degrees.")
 
         # draw the boundaries
         painter.setPen(QColor(75, 75, 75))

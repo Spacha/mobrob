@@ -33,14 +33,14 @@ def find_crossings(ulim, llim):
         if is_up:
             if s <= llim:
                 down_cnt += 1
-                if down_cnt >= 3:
+                if down_cnt >= 2:
                     is_up = False
                     down_cnt = 0
                     down_crossings.append(i)
         else:
             if s >= ulim:
                 up_cnt += 1
-                if up_cnt >= 3:
+                if up_cnt >= 2:
                     is_up = True
                     up_cnt = 0
                     up_crossings.append(i)
@@ -49,7 +49,7 @@ def find_crossings(ulim, llim):
     return up_crossings, down_crossings, cycles
 
 
-ULIM, LLIM = 4050, 3800
+ULIM, LLIM = 2700, 2400
 up_crossings, down_crossings, cycles = find_crossings(ULIM, LLIM)
 
 periods = []

@@ -52,8 +52,12 @@ uint16_t g_server_port = 3333;
 AsyncUDP udp;
 bool udp_connected = false;
 
-//#define NUM_MEASUREMENTS 8192
-//uint16_t measurements[NUM_MEASUREMENTS] = {0};
+int leftTrackDir  = 1;
+int rightTrackDir = 1;
+
+#define NUM_MEASUREMENTS 8192
+uint16_t measurements[NUM_MEASUREMENTS] = {0};
+int measurements_idx = 0;
 //uint32_t data_buffer[64] = {0};
 //int data_buffer_idx = 0;
 int lcycle_delta = 0;
@@ -219,7 +223,7 @@ void TaskReadHallSensors(void *params) {
         if (ldown_cnt >= 3) {
           lis_up = false;
           ldown_cnt = 0;
-          lcycle_delta += 1;
+          lcycle_delta += leftTrackDir;
         }
       }
     } else {
@@ -228,7 +232,7 @@ void TaskReadHallSensors(void *params) {
         if (lup_cnt >= 3) {
           lis_up = true;
           lup_cnt = 0;
-          lcycle_delta += 1;
+          lcycle_delta += leftTrackDir;
         }
       }
     }
@@ -242,7 +246,7 @@ void TaskReadHallSensors(void *params) {
         if (rdown_cnt >= 3) {
           ris_up = false;
           rdown_cnt = 0;
-          rcycle_delta += 1;
+          rcycle_delta += rightTrackDir;
         }
       }
     } else {
@@ -251,10 +255,23 @@ void TaskReadHallSensors(void *params) {
         if (rup_cnt >= 3) {
           ris_up = true;
           rup_cnt = 0;
-          rcycle_delta += 1;
+          rcycle_delta += rightTrackDir;
         }
       }
     }
+
+#if 0
+    //measurements[measurements_idx++] = rHallValue;
+    measurements[measurements_idx++] = lHallValue;
+
+    if (measurements_idx >= NUM_MEASUREMENTS) {
+      for (int i = 0; i < NUM_MEASUREMENTS; i++) {
+        Serial.println(measurements[i]);
+        measurements[i] = 0;
+      }
+      measurements_idx = 0;
+    }
+#endif
 
 #if 0
   bool isDown = analogRead(RHALL_PIN) <= HALL_LOWER;
@@ -293,6 +310,7 @@ void TaskReadHallSensors(void *params) {
     //int rHallValue = analogRead(RHALL_PIN);
     //Serial.println(lHallValue);
     //Serial.println(rHallValue);
+    // TODO: Enable this?
     //vTaskDelay(HALL_POLL_MS / portTICK_PERIOD_MS);
   }
 }
@@ -390,7 +408,7 @@ void TaskSendData(void *params) {
 
   for (;;) {
     if (udp_connected) {
-      sprintf(msgbuf, "(%d, %d)", lcycle_delta, rcycle_delta);
+      sprintf(msgbuf, "TD: (%d, %d)", lcycle_delta, rcycle_delta);
       udp.print(msgbuf);
       lcycle_delta = 0;
       rcycle_delta = 0;
@@ -410,18 +428,20 @@ void TaskSendData(void *params) {
  * Left track forward.
  */
 void leftTrackFW() {
+  leftTrackDir = 1;
   digitalWrite(L1_PIN, HIGH);
   digitalWrite(L2_PIN, LOW);
-  analogWrite(LEN_PIN, g_speed);
+  analogWrite(LEN_PIN, g_speed - 22); // FIXME: Calibration
 }
 
 /**
  * Left track backward.
  */
 void leftTrackBW() {
+  leftTrackDir = -1;
   digitalWrite(L1_PIN, LOW);
   digitalWrite(L2_PIN, HIGH);
-  analogWrite(LEN_PIN, g_speed);
+  analogWrite(LEN_PIN, g_speed - 22); // FIXME: Calibration
 }
 
 /**
@@ -437,6 +457,7 @@ void leftTrackStop() {
  * Right track forward.
  */
 void rightTrackFW() {
+  rightTrackDir = 1;
   digitalWrite(R1_PIN, HIGH);
   digitalWrite(R2_PIN, LOW);
   analogWrite(REN_PIN, g_speed);
@@ -446,6 +467,7 @@ void rightTrackFW() {
  * Right track backward.
  */
 void rightTrackBW() {
+  rightTrackDir = -1;
   digitalWrite(R1_PIN, LOW);
   digitalWrite(R2_PIN, HIGH);
   analogWrite(REN_PIN, g_speed);

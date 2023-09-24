@@ -1,5 +1,5 @@
 import sys, socket, select
-from math import ceil
+from math import ceil, atan, degrees
 from PyQt5.QtCore import Qt, QTimer, QEvent, pyqtSignal
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QVBoxLayout, QHBoxLayout, QSplitter,
                              QWidget, QLineEdit, QPushButton, QLabel, QStatusBar, QMessageBox,
@@ -48,6 +48,14 @@ keymap_groups = {
     'track_control':    ['left_fw', 'left_bw', 'right_fw', 'right_bw'],
 }
 
+class Robot:
+    def __init__(self):
+        self.angle = 0.0
+
+    def update_angle(self, angle_delta):
+        self.angle = (self.angle + angle_delta) % 360
+        print(f"Angle update: {angle_delta} => {self.angle}")
+
 # Consider grabKeyboard: https://doc.qt.io/qt-6/qwidget.html#grabKeyboard
 class KeycapDialog(QDialog):
     held_keys_changed = pyqtSignal(set)
@@ -92,6 +100,8 @@ class KeycapDialog(QDialog):
 class DashboardApplication(QMainWindow):
     def __init__(self):
         super(DashboardApplication, self).__init__()
+
+        self.robot = Robot()
 
         self.resize(960, 640)
         self.setWindowTitle("Mobrob server")
@@ -146,7 +156,7 @@ class DashboardApplication(QMainWindow):
         ###################################################
 
         # map viewer
-        self.map_widget = MapWidget(self)
+        self.map_widget = MapWidget(self, self.robot)
         main_splitter.addWidget(self.map_widget)
 
         ###################################################
@@ -230,13 +240,32 @@ class DashboardApplication(QMainWindow):
                 message = data.decode('utf-8')
                 print(f'Received message from {addr}: {message}')
 
-                if data == b'Hello Server!':
+                if not self.client_connected:
                     self.client_addr = addr
                     self.client_connected = True
                     self.update_status_bar(f"Client connected: {self.client_addr[0]}:{self.client_addr[1]}")
                     self.log("Client", "Network", f"Client connected: {self.client_addr[0]}:{self.client_addr[1]}")
 
-                self.log("Client", "Data", f"Received: {message}")
+                    # FIXME: set speed
+                    speed_message = '00010110'
+                    message_bytes = int(speed_message, 2).to_bytes(ceil(len(speed_message) / 8), 'little')
+                    self.send_message(message_bytes)
+                #if data == b'Hello Server!':
+                elif data[:2] == b'TD':
+                    # FIXME
+                    deltas = data.decode().split(': ')[1].split(', ')
+                    ldelta = int(deltas[0].lstrip('('))
+                    rdelta = int(int(deltas[1].rstrip(')')) * 0.75)
+                    dist_per_delta = 2
+                    robot_width = 8
+                    angle_delta = degrees( atan((dist_per_delta * (ldelta - rdelta)) / robot_width) )
+
+                    self.robot.update_angle(angle_delta)
+                    self.map_widget.repaint()
+
+                    self.log("Client", "Data", f"Track deltas: L: {ldelta:<4}, R: {rdelta:<4}")
+
+                #self.log("Client", "Data", f"Received: {message}")
 
     # TODO: Move server stuff to a separate module!
     def send_message(self, message):
