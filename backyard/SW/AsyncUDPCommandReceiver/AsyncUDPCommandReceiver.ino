@@ -47,7 +47,7 @@ void setup()
   if (WiFi.waitForConnectResult() != WL_CONNECTED) {
       Serial.println("WiFi Failed");
       while(1) {
-          delay(1000);
+        delay(1000);
       }
   }
 
@@ -59,7 +59,7 @@ void setup()
     udp.onPacket([](AsyncUDPPacket packet) {
       // packet.data(), packet.length()
 
-      //Serial.println("Packet received from server!");
+      Serial.println("\nPacket received from server!");
 
       if (packet.length() == 0)
         return;
@@ -120,7 +120,7 @@ void loop()
   //Serial.print(", right: ");
   //Serial.print(right_hall);
   //Serial.println();
-  //delay(100);
+  delay(100);
 
 #if 0
 #define TEMPBUF_SZ 10
@@ -241,45 +241,45 @@ void motorControl(uint8_t cmd_byte)
   if (cmd_byte >= 16)
     return;
 
-  //Serial.print("C> left track: ");
+  Serial.print("C> left track: ");
   switch ((cmd_byte & 0b1100) >> 2) {
     case 1:
-      //Serial.print("forward");
+      Serial.print("forward");
       leftTrackFW();
       break;
     case 2:
-      //Serial.print("backward");
+      Serial.print("backward");
       leftTrackBW();
       break;
     case 3:
-      //Serial.print("stop");
+      Serial.print("stop");
       leftTrackStop();
       break;
     default:
-      //Serial.print("[none]");
+      Serial.print("[none]");
       break;
   }
 
-  //Serial.print(", right track: ");
+  Serial.print(", right track: ");
   switch ((cmd_byte & 0b0011) >> 0) {
     case 1:
-      //Serial.print("forward");
+      Serial.print("forward");
       rightTrackFW();
       break;
     case 2:
-      //Serial.print("backward");
+      Serial.print("backward");
       rightTrackBW();
       break;
     case 3:
-      //Serial.print("stop");
+      Serial.print("stop");
       rightTrackStop();
       break;
     default:
-      //Serial.print("[none]");
+      Serial.print("[none]");
       break;
   }
 
-    //Serial.println();
+    Serial.println();
 }
 
 /**
@@ -291,8 +291,8 @@ void speedControl(uint8_t speed_byte)
     return;
 
   g_speed = speed_map[speed_byte];
-  //Serial.print("C> speed set to: ");
-  //Serial.println(g_speed);
+  Serial.print("C> speed set to: ");
+  Serial.println(g_speed);
 }
 
 /**
