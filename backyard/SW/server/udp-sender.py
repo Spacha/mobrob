@@ -2,7 +2,7 @@ import socket
 import time
 
 # client (robot) information
-UDP_IP = "192.168.1.166"
+UDP_IP = "192.168.1.168"
 UDP_PORT = 3333
 
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
