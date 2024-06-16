@@ -8,13 +8,18 @@
 #include <Adafruit_Sensor.h>
 #include <Wire.h>
 
-int sda_pin = 16; // GPIO16 as I2C SDA
-int scl_pin = 17; // GPIO17 as I2C SCL
+#define IMU_SDA_PIN 22
+#define IMU_SCL_PIN 23
+//int sda_pin = 22; // GPIO22 as I2C SDA, previously 16
+//int scl_pin = 23; // GPIO23 as I2C SCL, previously 17
+
+int lcycle_delta = 0; // TODO: Not needed
+int rcycle_delta = 0; // TODO: Not needed
 
 Adafruit_MPU6050 mpu;
 
 void setup(void) {
-  Wire.setPins(sda_pin, scl_pin); // Set the I2C pins before begin
+  Wire.setPins(IMU_SDA_PIN, IMU_SCL_PIN); // Set the I2C pins before begin
 
   Serial.begin(115200);
   while (!Serial)
@@ -100,6 +105,11 @@ void loop() {
   sensors_event_t a, g, temp;
   mpu.getEvent(&a, &g, &temp);
 
+  char msgbuf[32] = {0};
+  sprintf(msgbuf, "TD: (%d, %d), temp: %.2f", lcycle_delta, rcycle_delta, temp.temperature);
+  Serial.print(msgbuf);
+
+#if 0
   /* Print out the values */
   Serial.print("Acceleration X: ");
   Serial.print(a.acceleration.x);
@@ -122,5 +132,6 @@ void loop() {
   Serial.println(" degC");
 
   Serial.println("");
+#endif
   delay(500);
 }

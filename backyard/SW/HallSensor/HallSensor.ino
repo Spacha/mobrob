@@ -1,4 +1,4 @@
-#define HALL_PIN 34
+#define HALL_PIN 36
 
 void setup() {
   Serial.begin(115200);

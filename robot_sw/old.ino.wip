@@ -1,12 +1,6 @@
 // "C:\\Users\\miika\\AppData\\Local\\Arduino15\\packages\\esp32\\tools\\xtensa-esp32-elf-gcc\\esp-2021r2-patch5-8.4.0/bin/xtensa-esp32-elf-objdump" -d BasicMultiThreading.ino.elf >> BasicMultiThreading.ino.asm
 
 #include <Arduino.h>  // millis
-
-// MPU6050
-#include <Adafruit_MPU6050.h>
-#include <Adafruit_Sensor.h>
-#include <Wire.h>
-
 #include "WiFi.h"
 #include "AsyncUDP.h"
 #include "network_credentials.h"
@@ -20,29 +14,25 @@
 
 // Pin assignments
 
-//#ifndef LED_BUILTIN
-#define STATUS_LED_PIN 13
-//#endif
+#ifndef LED_BUILTIN
+#define LED_BUILTIN 14
+#endif
 
-#define IMU_SDA_PIN 22
-#define IMU_SCL_PIN 23
+#define LHALL_PIN 39  // Left track hall sensor
+#define RHALL_PIN 36  // Right track hall sensor
 
-#define LHALL_PIN 36  // Left track hall sensor
-#define RHALL_PIN 39  // Right track hall sensor
-
-#define UT_TRIG_PIN 21   // Ultrasonic sensor trigger
-#define UT_ECHO_PIN 4  // Ultrasonic sensor echo (used to be 23)
+#define UT_TRIG_PIN 4   // Ultrasonic sensor trigger
+#define UT_ECHO_PIN 23  // Ultrasonic sensor echo
 
 // Left:  3A, 4A, 3,4EN
 // Right: 1A, 2A, 1,2EN
 
-#define L1_PIN  27    // Left motor control 1:  1A
-#define L2_PIN  26    // Left motor control 2:  2A
-#define LEN_PIN 14    // Left motor enable:     1,2EN
-
-#define R1_PIN  33    // Right motor control 1: 3A
-#define R2_PIN  32    // Right motor control 2: 4A
-#define REN_PIN 25    // Right motor enable:    3,4EN
+#define L1_PIN 25   // Left motor control 1
+#define L2_PIN 13   // Left motor control 2
+#define LEN_PIN 26  // Left motor enable
+#define R1_PIN 32   // Right motor control 1
+#define R2_PIN 12   // Right motor control 2
+#define REN_PIN 33  // Right motor enable
 
 #define WIFI_POLL_MS          10000
 #define WIFI_TIMEOUT_MS       20000
@@ -84,86 +74,8 @@ void TaskSendData(void *params);
 
 TaskHandle_t analog_read_task_handle;
 
-Adafruit_MPU6050 mpu;
-
 void setup() {
-  Wire.setPins(IMU_SDA_PIN, IMU_SCL_PIN); // Set the I2C pins before begin
-
   Serial.begin(115200);
-
-  if (!mpu.begin()) {
-    Serial.println("Failed to find MPU6050 chip");
-    while (1) {
-      delay(10);
-    }
-  }
-  Serial.println("MPU6050 Found!");
-
-  // Setup IMU
-  mpu.setAccelerometerRange(MPU6050_RANGE_8_G);
-  Serial.print("Accelerometer range set to: ");
-  switch (mpu.getAccelerometerRange()) {
-  case MPU6050_RANGE_2_G:
-    Serial.println("+-2G");
-    break;
-  case MPU6050_RANGE_4_G:
-    Serial.println("+-4G");
-    break;
-  case MPU6050_RANGE_8_G:
-    Serial.println("+-8G");
-    break;
-  case MPU6050_RANGE_16_G:
-    Serial.println("+-16G");
-    break;
-  }
-  
-  mpu.setGyroRange(MPU6050_RANGE_500_DEG);
-  Serial.print("Gyro range set to: ");
-  switch (mpu.getGyroRange()) {
-  case MPU6050_RANGE_250_DEG:
-    Serial.println("+- 250 deg/s");
-    break;
-  case MPU6050_RANGE_500_DEG:
-    Serial.println("+- 500 deg/s");
-    break;
-  case MPU6050_RANGE_1000_DEG:
-    Serial.println("+- 1000 deg/s");
-    break;
-  case MPU6050_RANGE_2000_DEG:
-    Serial.println("+- 2000 deg/s");
-    break;
-  }
-
-  mpu.setFilterBandwidth(MPU6050_BAND_5_HZ);
-  Serial.print("Filter bandwidth set to: ");
-  switch (mpu.getFilterBandwidth()) {
-  case MPU6050_BAND_260_HZ:
-    Serial.println("260 Hz");
-    break;
-  case MPU6050_BAND_184_HZ:
-    Serial.println("184 Hz");
-    break;
-  case MPU6050_BAND_94_HZ:
-    Serial.println("94 Hz");
-    break;
-  case MPU6050_BAND_44_HZ:
-    Serial.println("44 Hz");
-    break;
-  case MPU6050_BAND_21_HZ:
-    Serial.println("21 Hz");
-    break;
-  case MPU6050_BAND_10_HZ:
-    Serial.println("10 Hz");
-    break;
-  case MPU6050_BAND_5_HZ:
-    Serial.println("5 Hz");
-    break;
-  }
-
-  Serial.println("");
-  delay(100);
-
-  // Set up the tasks
 
   //uint32_t blink_delay = 1000;
   xTaskCreate(
@@ -236,16 +148,16 @@ void TaskBlink(void *params) {
   //uint32_t blink_delay = *((uint32_t *)params);
   (void)params;
 
-  pinMode(STATUS_LED_PIN, OUTPUT);
+  pinMode(LED_BUILTIN, OUTPUT);
 
   for (;;) {
-    digitalWrite(STATUS_LED_PIN, HIGH);
+    digitalWrite(LED_BUILTIN, HIGH);
     if (udp_connected)
       delay(BLINK_CONNECTED_MS);
     else
       delay(BLINK_CONNECTING_MS);
 
-    digitalWrite(STATUS_LED_PIN, LOW);
+    digitalWrite(LED_BUILTIN, LOW);
     if (udp_connected)
       delay(BLINK_CONNECTED_MS);
     else
@@ -266,8 +178,7 @@ void TaskReadHallSensors(void *params) {
   //}
 
 #define HALL_UPPER 3300 // 4050
-//#define HALL_LOWER 2600 // 3800
-#define HALL_LOWER 2900
+#define HALL_LOWER 2600 // 3800
 
 #if 0
   int pin = LHALL_PIN;
@@ -352,16 +263,18 @@ void TaskReadHallSensors(void *params) {
       }
     }
 
+#if 0
     //measurements[measurements_idx++] = rHallValue;
-    //measurements[measurements_idx++] = lHallValue;
+    measurements[measurements_idx++] = lHallValue;
 
-    //if (measurements_idx >= NUM_MEASUREMENTS) {
-    //  for (int i = 0; i < NUM_MEASUREMENTS; i++) {
-    //    //Serial.println(measurements[i]);
-    //    measurements[i] = 0;
-    //  }
-    //  measurements_idx = 0;
-    //}
+    if (measurements_idx >= NUM_MEASUREMENTS) {
+      for (int i = 0; i < NUM_MEASUREMENTS; i++) {
+        Serial.println(measurements[i]);
+        measurements[i] = 0;
+      }
+      measurements_idx = 0;
+    }
+#endif
 
 #if 0
   bool isDown = analogRead(RHALL_PIN) <= HALL_LOWER;
@@ -488,26 +401,18 @@ void TaskKeepWiFiAlive(void *params) {
   }
 }
 
-
 /**
  * Task: Send messages in the buffer.
  */
 void TaskSendData(void *params) {
   (void)params;
 
-  char msgbuf[96] = {0};
+  char msgbuf[16] = {0};
 
   for (;;) {
     if (udp_connected) {
-      // test: read temperature
-      sensors_event_t a, g, temp;
-      mpu.getEvent(&a, &g, &temp);
-
-      long objectDistance = readUltrasonicSensor();
-
-      sprintf(msgbuf, "TD: (%d, %d), temp: %.2f degC, ax: %.2f, ay: %.2f, dist: %ld cm", lcycle_delta, rcycle_delta, temp.temperature, a.acceleration.x, a.acceleration.y, objectDistance);
+      sprintf(msgbuf, "TD: (%d, %d)", lcycle_delta, rcycle_delta);
       udp.print(msgbuf);
-      Serial.println(msgbuf);
       lcycle_delta = 0;
       rcycle_delta = 0;
     }
@@ -527,8 +432,8 @@ void TaskSendData(void *params) {
  */
 void leftTrackFW() {
   leftTrackDir = 1;
-  digitalWrite(L1_PIN, LOW);
-  digitalWrite(L2_PIN, HIGH);
+  digitalWrite(L1_PIN, HIGH);
+  digitalWrite(L2_PIN, LOW);
   analogWrite(LEN_PIN, g_speed - 22); // FIXME: Calibration
 }
 
@@ -537,8 +442,8 @@ void leftTrackFW() {
  */
 void leftTrackBW() {
   leftTrackDir = -1;
-  digitalWrite(L1_PIN, HIGH);
-  digitalWrite(L2_PIN, LOW);
+  digitalWrite(L1_PIN, LOW);
+  digitalWrite(L2_PIN, HIGH);
   analogWrite(LEN_PIN, g_speed - 22); // FIXME: Calibration
 }
 
@@ -556,8 +461,8 @@ void leftTrackStop() {
  */
 void rightTrackFW() {
   rightTrackDir = 1;
-  digitalWrite(R1_PIN, LOW);
-  digitalWrite(R2_PIN, HIGH);
+  digitalWrite(R1_PIN, HIGH);
+  digitalWrite(R2_PIN, LOW);
   analogWrite(REN_PIN, g_speed);
 }
 
@@ -566,8 +471,8 @@ void rightTrackFW() {
  */
 void rightTrackBW() {
   rightTrackDir = -1;
-  digitalWrite(R1_PIN, HIGH);
-  digitalWrite(R2_PIN, LOW);
+  digitalWrite(R1_PIN, LOW);
+  digitalWrite(R2_PIN, HIGH);
   analogWrite(REN_PIN, g_speed);
 }
 
@@ -636,8 +541,8 @@ void speedControl(uint8_t speed_byte) {
     return;
 
   g_speed = speed_map[speed_byte];
-  Serial.print("C> speed set to: ");
-  Serial.println(g_speed);
+  //Serial.print("C> speed set to: ");
+  //Serial.println(g_speed);
 }
 
 /**
@@ -650,22 +555,4 @@ void taskControl(uint8_t task_byte) {
   //g_should_measure = task_byte == 1;
   //Serial.print("C> measurement control set to: ");
   //Serial.println(g_should_measure ? 'active' : 'inactive');
-}
-
-
-long microsecondsToCentimeters(long microseconds) {
-  return microseconds / 29 / 2;
-}
-
-long readUltrasonicSensor() {
-  long duration;
-
-  digitalWrite(UT_TRIG_PIN, LOW);
-  delayMicroseconds(2);
-  digitalWrite(UT_TRIG_PIN, HIGH);
-  delayMicroseconds(10);
-  digitalWrite(UT_TRIG_PIN, LOW);
-
-  duration = pulseIn(UT_ECHO_PIN, HIGH);
-  return microsecondsToCentimeters(duration);
 }

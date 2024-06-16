@@ -1,0 +1,41 @@
+class Mobrob
+{
+    
+}
+
+
+
+
+
+
+// Task definitions
+void TaskBlink(void *params);
+void TaskReadSensors(void *params);
+void TaskCheckDirection(void *params);
+void TaskKeepWifiAlive(void *params);
+void TaskSendData(void *params);
+
+void TaskBlink(void *params)
+{
+    // ...
+}
+
+void TaskReadSensors(void *params)
+{
+    // ...
+}
+
+void TaskCheckDirection(void *params)
+{
+    // ...
+}
+
+void TaskKeepWiFiAlive(void *params)
+{
+    
+}
+
+void TaskSendData(void *params)
+{
+    // ...
+}
