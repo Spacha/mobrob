@@ -1,8 +1,12 @@
 import datetime
+from typing import Union
 from PyQt5.QtGui import QContextMenuEvent
 from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import (QTableWidget, QAbstractItemView, QHeaderView, QTableWidgetItem,
                              QDialog, QGridLayout, QLabel, QLineEdit, QTextEdit, QMenu, QAction)
+
+def format_dict(d: dict) -> str:
+    return ', '.join([f"{k}: {str(v)}" for k, v in d.items()])
 
 class MessagePopup(QDialog):
     def __init__(self, log_time, log_source, log_type, log_content, parent=None):
@@ -67,16 +71,16 @@ class LogWidget(QTableWidget):
 
         # Style the table view
         self.horizontalHeader().setDefaultAlignment(Qt.AlignLeft)
-        self.setColumnWidth(0, 60)                                              # fixed size (resizable)
-        self.setColumnWidth(1, 60)                                              # fixed size (resizable)
-        self.setColumnWidth(2, 60)                                              # fixed size (resizable)
+        self.setColumnWidth(0, 60)
+        self.setColumnWidth(1, 60)
+        self.setColumnWidth(2, 90)
         self.setColumnWidth(3, 1000)
         self.horizontalHeader().setSectionResizeMode(0, QHeaderView.Fixed)
         self.horizontalHeader().setSectionResizeMode(1, QHeaderView.Fixed)
         self.horizontalHeader().setSectionResizeMode(2, QHeaderView.Fixed)
-        self.horizontalHeader().setSectionResizeMode(3, QHeaderView.Stretch)    # fill the rest
+        self.horizontalHeader().setSectionResizeMode(3, QHeaderView.Stretch)
         self.setAlternatingRowColors(True)
-        self.setMinimumWidth(240)
+        self.setMinimumWidth(400)
 
         # Disable selection for column headers
         self.horizontalHeader().setSectionsClickable(False)
@@ -85,7 +89,9 @@ class LogWidget(QTableWidget):
         # Connect double-click event to open message pop-up
         self.doubleClicked.connect(self.show_log_message_popup)
     
-    def add_row(self, source, log_type, content):
+    def add_row(self, source, log_type, content: Union[str, dict]) -> None:
+        if type(content) is dict:
+            content = format_dict(content)
         # Add a new row to the table and insert the log data
         row_count = self.rowCount()
         self.insertRow(row_count)

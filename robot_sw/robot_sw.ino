@@ -1,4 +1,8 @@
+#include "WiFi.h"
+#include "AsyncUDP.h"
+
 #include "Drive.h"
+#include "network_credentials.h"
 
 enum status { UNCONNECTED, CONNECTED };
 
@@ -24,7 +28,14 @@ enum status { UNCONNECTED, CONNECTED };
 
 void TaskBlink(void *params);
 void TaskReceiveSerial(void *params);
+void TaskKeepWifiAlive(void *params);
 
+// WiFi and UDP
+IPAddress g_server_addr(192, 168, 1, 168);
+uint16_t g_server_port = 3333;
+AsyncUDP udp;
+
+// Drive
 Drive drive(PIN_L1, PIN_L2, PIN_LEN,
             PIN_R1, PIN_R2, PIN_REN);
 
@@ -36,12 +47,10 @@ void setup()
   delay(100);
 
   ///////////////////////////////////////
-  // Set up tasks
+  // Set up pins
   ///////////////////////////////////////
 
-  xTaskCreate(TaskBlink, "Blink", 2048, NULL, 5, NULL);
-  xTaskCreate(TaskReceiveSerial, "ReceiveSerial", 2048, NULL, 3, NULL);
-
+  pinMode(PIN_STATUS_LED, OUTPUT);
   pinMode(PIN_LEN, OUTPUT);
   pinMode(PIN_L1, OUTPUT);
   pinMode(PIN_L2, OUTPUT);
@@ -49,12 +58,20 @@ void setup()
   pinMode(PIN_R1, OUTPUT);
   pinMode(PIN_R2, OUTPUT);
 
-  Serial.print("Initialized.");
 
-  Serial.println("Enter commands:");
+  Serial.println("Initialized. Commands:");
   Serial.println("1. drive <left_speed> <right_speed>");
   Serial.println("2. brake <1 (apply) | 0 (release)>");
   Serial.println("3. status <0 (UNCONNECTED) | 1 (CONNECTED)>");
+  Serial.println();
+
+  ///////////////////////////////////////
+  // Start tasks
+  ///////////////////////////////////////
+
+  xTaskCreate(TaskBlink, "Blink", 2048, NULL, 5, NULL);
+  xTaskCreate(TaskReceiveSerial, "ReceiveSerial", 2048, NULL, 3, NULL);
+  xTaskCreate(TaskKeepWifiAlive, "KeepWifiAlive", 4096, NULL, 2, NULL);
 }
 
 void loop()
@@ -67,7 +84,8 @@ void loop()
 // Task definitions
 ///////////////////////////////////////////////////////////////////////////////
 
-void TaskReceiveSerial(void *params) {
+void TaskReceiveSerial(void *params)
+{
   (void)params;
 
   for (;;)
@@ -146,25 +164,96 @@ void TaskReceiveSerial(void *params) {
   }
 }
 
-void TaskBlink(void *params) {
+void TaskBlink(void *params)
+{
   (void)params;
 
   const int delay_unconnected = 250;
   const int delay_connected   = 1000;
 
-  pinMode(PIN_STATUS_LED, OUTPUT);
-
   for (;;) {
     digitalWrite(PIN_STATUS_LED, HIGH);
     if (g_status == CONNECTED)
-      delay(delay_connected);
+      vTaskDelay(delay_connected / portTICK_PERIOD_MS);
     else
-      delay(delay_unconnected);
+      vTaskDelay(delay_unconnected / portTICK_PERIOD_MS);
 
     digitalWrite(PIN_STATUS_LED, LOW);
     if (g_status == CONNECTED)
-      delay(delay_connected);
+      vTaskDelay(delay_connected / portTICK_PERIOD_MS);
     else
-      delay(delay_unconnected);
+      vTaskDelay(delay_unconnected / portTICK_PERIOD_MS);
+  }
+}
+
+void TaskKeepWifiAlive(void *params)
+{
+  (void)params;
+
+  const int wifi_poll_delay     = 5000;
+  const int wifi_timeout        = 20000;
+  const int wifi_recover_delay  = 15000;
+  //const int wifi_recover_delay  = 1000;
+
+  for (;;)
+  {
+    // Regularly check if WiFi is still up
+    if (WiFi.status() == WL_CONNECTED)
+    {
+      vTaskDelay(wifi_poll_delay / portTICK_PERIOD_MS);
+      continue;
+    }
+
+    ///////////////////////////////////////////////////////////
+    // WiFi not connected
+    ///////////////////////////////////////////////////////////
+
+    g_status = UNCONNECTED;
+    Serial.println("[WIFI] Connecting...");
+    WiFi.mode(WIFI_STA);
+    WiFi.begin(NETWORK_NAME, NETWORK_PASSWORD);
+
+    unsigned long start_attempt_time = millis();
+
+    // if not connected, keep waiting until connected, or timeout reached
+    while (WiFi.status() != WL_CONNECTED && (millis() - start_attempt_time) < wifi_timeout) {}
+
+    // if we failed to connect, sleep for a while until we start trying again
+    if (WiFi.status() != WL_CONNECTED)
+    {
+      Serial.println("[WIFI] FAILED");
+      vTaskDelay(wifi_recover_delay / portTICK_PERIOD_MS);
+      continue;
+    }
+
+    ///////////////////////////////////////////////////////////
+    // WiFi connected
+    ///////////////////////////////////////////////////////////
+
+    Serial.print("[WIFI] Connected: ");
+    Serial.println(WiFi.localIP());
+
+    // connect to the server using UDP
+    if (udp.connect(g_server_addr, g_server_port))
+    {
+      // Protocol here before connected!
+
+      Serial.println("[UDP] Connected.");
+      g_status = CONNECTED;
+
+      // register receive callback when server sends a packet
+      udp.onPacket([](AsyncUDPPacket packet)
+      {
+        if (packet.length() == 0)
+          return;
+
+        Serial.print("Received data: ");
+        Serial.write(packet.data(), packet.length());
+        Serial.println();
+      });
+
+      // send a unicast message right after connecting
+      udp.print("Hello Server!");
+    }
   }
 }

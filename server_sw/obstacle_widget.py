@@ -2,11 +2,19 @@ from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import QWidget
 from PyQt5.QtGui import QPainter, QColor, QPen, QImage, QPainterPath, QTransform, QFont
 
-class MapWidget(QWidget):
-    def __init__(self, parent=None, robot=None):
+# FIXME: TEMP
+class Robot:
+    angle = 0.0
+
+class ObstacleWidget(QWidget):
+    def __init__(self, parent=None):
         super().__init__(parent)
-        self.robot = robot
+        self.robot = Robot() # TODO: TEMP
+
         self.font = QFont("Arial", 16)
+        self.setFixedWidth(250)
+        self.setMinimumHeight(350)
+
         self.draw_robot_sprite()
 
     def draw_robot_sprite(self):
