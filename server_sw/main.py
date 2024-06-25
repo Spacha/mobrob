@@ -1,4 +1,5 @@
 import sys
+from enum import IntEnum
 from PyQt5.QtWidgets import QApplication, QMainWindow, QStatusBar, QLabel, QWidget, QHBoxLayout, QVBoxLayout, QGridLayout, QPushButton, QAction, QSpacerItem, QSizePolicy
 from PyQt5.QtGui import QFont
 from mobrob_server import MobrobServer, ClientMessage
@@ -31,6 +32,9 @@ SERVER_TIMEOUT  = 1
 #     def set_status(self, status: str) -> None:
 #         self.status = status
 
+class Mode(IntEnum):
+    MANUAL  = 0
+    EXPLORE = 1
 
 class DashboardApplication(QMainWindow):
     def __init__(self) -> None:
@@ -40,8 +44,8 @@ class DashboardApplication(QMainWindow):
 
         self.configuration_status = None
         self.robot_configuration = {
-            'track_speed': 666,
-            'mode': 'manual',
+            'track_speed': 1.2,
+            'mode': Mode.EXPLORE,
         }
         self.robot_data = {
             'roll': 0.0,

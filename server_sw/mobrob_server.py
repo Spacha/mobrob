@@ -141,6 +141,7 @@ class MobrobServer:
             try:
                 data, addr = self.sock.recvfrom(self.options['buffer_size'])
                 message = ClientMessage.from_bytes(data)
+                print("RAW:", message)
             except ConnectionResetError:
                 if self._status == 'CONNECTED':
                     self.disconnect()

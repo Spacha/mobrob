@@ -1,10 +1,6 @@
-#include "WiFi.h"
-#include "AsyncUDP.h"
-
+#include "mobrob.h"
 #include "Drive.h"
-#include "network_credentials.h"
-
-enum status { UNCONNECTED, CONNECTED };
+#include "MobrobClient.h"
 
 ///////////////////////////////////////////////////////////////////////////////
 // Pin assignments
@@ -26,20 +22,23 @@ enum status { UNCONNECTED, CONNECTED };
 # define ARDUINO_RUNNING_CORE 1
 #endif
 
-void TaskBlink(void *params);
-void TaskReceiveSerial(void *params);
-void TaskKeepWifiAlive(void *params);
-
-// WiFi and UDP
-IPAddress g_server_addr(192, 168, 1, 168);
-uint16_t g_server_port = 3333;
-AsyncUDP udp;
-
 // Drive
 Drive drive(PIN_L1, PIN_L2, PIN_LEN,
             PIN_R1, PIN_R2, PIN_REN);
 
-status g_status = UNCONNECTED;
+// Client
+MobrobClient client(IPAddress(SERVER_ADDR), SERVER_PORT, update_configuration, control);
+
+// Configuration
+Status g_status = UNCONNECTED;
+Mode g_mode = MANUAL;
+float g_track_speed = 0.0;
+
+// TODO: An update struct?
+float g_roll = 0.0;
+float g_pitch = 0.0;
+float g_temperature = 0.0;
+float g_travel_dist = 0.0;
 
 void setup()
 {
@@ -69,14 +68,15 @@ void setup()
   // Start tasks
   ///////////////////////////////////////
 
-  xTaskCreate(TaskBlink, "Blink", 2048, NULL, 5, NULL);
-  xTaskCreate(TaskReceiveSerial, "ReceiveSerial", 2048, NULL, 3, NULL);
-  xTaskCreate(TaskKeepWifiAlive, "KeepWifiAlive", 4096, NULL, 2, NULL);
+  xTaskCreate(TaskKeepWifiAlive,  "KeepWifiAlive",  4096, NULL, 2, NULL);
+  xTaskCreate(TaskSendUpdate,     "SendUpdate",     4096, NULL, 3, NULL);
+  xTaskCreate(TaskReceiveSerial,  "ReceiveSerial",  2048, NULL, 4, NULL);
+  xTaskCreate(TaskBlink,          "Blink",          2048, NULL, 5, NULL);
 }
 
 void loop()
 {
-
+  // ...
 }
 
 
@@ -186,6 +186,30 @@ void TaskBlink(void *params)
   }
 }
 
+void TaskSendUpdate(void *params)
+{
+  (void)params;
+
+  const int update_rate = 2000;
+
+  for (;;)
+  {
+    if (g_status == CONNECTED)
+    {
+      // TODO: Take a measurement?
+
+      g_roll = (float)random(0, 10) / 10 - 0.5;
+      g_pitch = (float)random(0, 10) / 10 - 0.5;
+      g_temperature = (float)random(23, 28);
+      g_travel_dist = g_travel_dist + (float)random(0, 5) / 10;
+
+      client.send_robot_update(g_roll, g_pitch, g_temperature, g_travel_dist);
+    }
+
+    vTaskDelay(update_rate / portTICK_PERIOD_MS);
+  }
+}
+
 void TaskKeepWifiAlive(void *params)
 {
   (void)params;
@@ -197,63 +221,49 @@ void TaskKeepWifiAlive(void *params)
 
   for (;;)
   {
-    // Regularly check if WiFi is still up
-    if (WiFi.status() == WL_CONNECTED)
+    // Connected: sleep for a while and then check again
+    if (client.connected())
     {
       vTaskDelay(wifi_poll_delay / portTICK_PERIOD_MS);
       continue;
     }
 
-    ///////////////////////////////////////////////////////////
-    // WiFi not connected
-    ///////////////////////////////////////////////////////////
-
+    // Unconnected: try connecting
     g_status = UNCONNECTED;
-    Serial.println("[WIFI] Connecting...");
-    WiFi.mode(WIFI_STA);
-    WiFi.begin(NETWORK_NAME, NETWORK_PASSWORD);
-
-    unsigned long start_attempt_time = millis();
-
-    // if not connected, keep waiting until connected, or timeout reached
-    while (WiFi.status() != WL_CONNECTED && (millis() - start_attempt_time) < wifi_timeout) {}
-
-    // if we failed to connect, sleep for a while until we start trying again
-    if (WiFi.status() != WL_CONNECTED)
+    
+    if (client.try_connect(wifi_timeout))
     {
-      Serial.println("[WIFI] FAILED");
-      vTaskDelay(wifi_recover_delay / portTICK_PERIOD_MS);
+      // Just connected
+      g_status = CONNECTED;
       continue;
     }
 
-    ///////////////////////////////////////////////////////////
-    // WiFi connected
-    ///////////////////////////////////////////////////////////
-
-    Serial.print("[WIFI] Connected: ");
-    Serial.println(WiFi.localIP());
-
-    // connect to the server using UDP
-    if (udp.connect(g_server_addr, g_server_port))
-    {
-      // Protocol here before connected!
-
-      Serial.println("[UDP] Connected.");
-      g_status = CONNECTED;
-
-      // register receive callback when server sends a packet
-      udp.onPacket([](AsyncUDPPacket packet)
-      {
-        if (packet.length() == 0)
-          return;
-
-        Serial.print("Received data: ");
-        Serial.write(packet.data(), packet.length());
-        Serial.println();
-      });
-
-      // send a unicast message right after connecting
-      udp.print("Hello Server!");
-    }
+    // Connection failed: sleep for a while and try again
+    Serial.println("[CLIENT] Error: Connection failed.");
+    vTaskDelay(wifi_recover_delay / portTICK_PERIOD_MS);
   }
+}
+
+
+void update_configuration(float track_speed, Mode mode)
+{
+  // Update the configuration based on the received values
+  Serial.print("Track Speed: ");
+  Serial.println(track_speed);
+  Serial.print("Mode: ");
+  Serial.println(mode == MANUAL ? "MANUAL" : "EXPLORE");
+
+  g_track_speed = track_speed;
+  g_mode = mode;
+}
+
+void control(float left_track, float right_track)
+{
+  // Update the configuration based on the received values
+  Serial.print("Control: left:");
+  Serial.print(left_track);
+  Serial.print(", right:");
+  Serial.println(right_track);
+
+  // TODO: drive
 }
