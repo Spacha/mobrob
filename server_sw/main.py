@@ -44,8 +44,8 @@ class DashboardApplication(QMainWindow):
 
         self.configuration_status = None
         self.robot_configuration = {
-            'track_speed': 1.2,
-            'mode': Mode.EXPLORE,
+            'mode': Mode.MANUAL,
+            'speed': 0.6,
         }
         self.robot_data = {
             'roll': 0.0,
@@ -75,7 +75,13 @@ class DashboardApplication(QMainWindow):
         self.bottom_pane.setFixedHeight(150)
         bottom_pane_layout = QHBoxLayout(self.bottom_pane)
 
-        self.controls_widget = ControlsWidget(self.bottom_pane)
+        self.controls_widget = ControlsWidget(
+            self.send_robot_configuration,
+            lambda: self.robot_configuration,
+            self.bottom_pane,
+            self.robot_configuration["mode"],
+            self.robot_configuration["speed"]
+        )
         bottom_pane_layout.addWidget(self.controls_widget)
         self.measurements_widget = MeasurementsWidget(self.bottom_pane, self.robot_data['temperature'], 0.0)
         #self.measurements_widget.setFixedWidth(100)
@@ -87,8 +93,8 @@ class DashboardApplication(QMainWindow):
         # self.data_temp_label = QLabel()
 
         # Robot configuration form
-        self.send_conf_btn = QPushButton("Send configuration")
-        self.send_conf_btn.clicked.connect(self.send_robot_configuration)
+        #self.send_conf_btn = QPushButton("Send configuration")
+        #self.send_conf_btn.clicked.connect(self.send_robot_configuration)
 
         # Add widgets to the grid layout
         main_grid.addWidget(self.log_widget, 0, 0)
@@ -163,24 +169,35 @@ class DashboardApplication(QMainWindow):
         if any(k in data_dict for k in ['object_dist']):
             self.obstacle_widget.update_data(self.robot_data['object_dist'])
 
-    def send_robot_configuration(self) -> None:
+    def send_robot_configuration(self, mode=None, speed=None) -> None:
         if not self.server._status == 'CONNECTED':
             return
+
+        configuration = self.robot_configuration
+        if mode is not None:
+            configuration["mode"] = mode
+        if speed is not None:
+            configuration["speed"] = speed
 
         self.set_configuration_status('PENDING')
         self.server.send_message(
             'CONFIGURATION',
-            self.robot_configuration,
-            lambda: self.set_configuration_status('SENT')
+            configuration,
+            lambda: self.set_configuration_status('SENT', configuration)
         )
 
-    def set_configuration_status(self, status: str) -> None:
+    def set_configuration_status(self, status: str, new_configuration: dict=None) -> None:
         # status == 'PENDING'   -> disable form
         # status == 'SEND'      -> enable form
         #print(f"[GUI] Configuration status changed to: {status}")
-        print('confstat', status)
+        #print('confstat', status)
         self.configuration_status = status
-        self.send_conf_btn.setEnabled(status == 'SENT' and self.server._status == 'CONNECTED')
+        #self.send_conf_btn.setEnabled(status == 'SENT' and self.server._status == 'CONNECTED')
+        self.controls_widget.set_enabled(status == 'SENT' and self.server._status == 'CONNECTED')
+
+        if new_configuration:
+            self.robot_configuration |= new_configuration
+            self.controls_widget.update_data(**self.robot_configuration, no_changes=True)
 
     def update_server_status(self, status: str, old_status: str) -> None:
         #self.statusbar.set_text(f"Connection status: {self.server.status}")
@@ -190,7 +207,7 @@ class DashboardApplication(QMainWindow):
             self.send_robot_configuration()
             self.statusbar.showMessage("Connected!")
         elif status == 'DISCONNECTED' and old_status == 'CONNECTED':
-            self.statusbar.showMessage("Not connected.")
+            self.statusbar.showMessage("Waiting for connection...")
             self.set_configuration_status(self.configuration_status) # HAX
     
     def receive_message(self, message: ClientMessage) -> None:

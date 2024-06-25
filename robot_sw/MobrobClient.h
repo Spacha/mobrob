@@ -145,14 +145,14 @@ void MobrobClient::handle_packet(AsyncUDPPacket packet)
   m_last_message_t = millis();
 
   Serial.print("[CLT] Received data: ");
-  Serial.write(packet.data(), packet.length());
+  //Serial.write(packet.data(), packet.length());
   Serial.println();
 
   // handle message
   JsonDocument msg; // FIXME: Use static message for deserialization also!
   deserializeJson(msg, packet.data());
 
-  serializeJsonPretty(msg, Serial);
+  serializeJson(msg, Serial);
   Serial.println();
 
   String msg_type = msg["type"];
