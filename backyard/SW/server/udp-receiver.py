@@ -17,8 +17,8 @@ seq_no = 1
 status = 'DISCONNECTED'
 
 configuration = {
-    'track_speed': 0,
-    'mode': 'manual',
+    'track_speed': 0.0,
+    'mode': 'MANUAL',
 }
 
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -90,7 +90,7 @@ while True:
                 send_message('ACK', {
                     'seq_no': message['seq_no']
                 })
-            
+
             elif message['type'] == 'ACK':
                 #time_at_last_ack = time.time()
                 pass

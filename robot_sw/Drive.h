@@ -1,3 +1,6 @@
+#ifndef __DRIVE_H__
+#define __DRIVE_H__
+
 ///////////////////////////////////////////////////////////////////////////////
 // Motor
 ///////////////////////////////////////////////////////////////////////////////
@@ -24,14 +27,23 @@ public:
   void stop(bool brake = false);
 };
 
+/**
+ * TODO.
+ */
 Motor::Motor(uint8_t pin_1, uint8_t pin_2, uint8_t pin_en)
   : m_pin_1(pin_1),
     m_pin_2(pin_2),
     m_pin_en(pin_en)
 {}
 
+/**
+ * TODO.
+ */
 Motor::~Motor() {}
 
+/**
+ * TODO.
+ */
 void Motor::drive_forward(float speed)
 {
   assert(speed >= 0 && speed <= 1);
@@ -41,6 +53,9 @@ void Motor::drive_forward(float speed)
   analogWrite(m_pin_en, speed * 255);
 }
 
+/**
+ * TODO.
+ */
 void Motor::drive_backward(float speed)
 {
   assert(speed >= 0 && speed <= 1);
@@ -50,6 +65,9 @@ void Motor::drive_backward(float speed)
   analogWrite(m_pin_en, speed * 255);
 }
 
+/**
+ * TODO.
+ */
 void Motor::stop(bool brake)
 {
   digitalWrite(m_pin_1, HIGH);
@@ -77,13 +95,22 @@ protected:
   Motor m_right_motor;
 };
 
+/**
+ * TODO.
+ */
 Drive::Drive(int pin_l1, int pin_l2, int pin_len, int pin_r1, int pin_r2, int pin_ren)
   : m_left_motor(pin_l1, pin_l2, pin_len), 
     m_right_motor(pin_r1, pin_r2, pin_ren) 
 {}
 
+/**
+ * TODO.
+ */
 Drive::~Drive() {}
 
+/**
+ * TODO.
+ */
 void Drive::control(float left_speed, float right_speed)
 {
   if (left_speed > 0)
@@ -101,14 +128,22 @@ void Drive::control(float left_speed, float right_speed)
     m_right_motor.stop();
 }
 
+/**
+ * TODO.
+ */
 void Drive::apply_brake()
 {
   m_left_motor.stop(true);
   m_right_motor.stop(true);
 }
 
+/**
+ * TODO.
+ */
 void Drive::release_brake()
 {
   m_left_motor.stop(false);
   m_right_motor.stop(false);
 }
+
+#endif /* __DRIVE_H__ */
