@@ -281,7 +281,6 @@ class DashboardApplication(QMainWindow):
             # slot for handling the held_keys_changes signal
             print("Keys pressed:", held_keys)
 
-            # map keys to command byte
             left_track = 0
             right_track = 0
 
@@ -314,33 +313,6 @@ class DashboardApplication(QMainWindow):
                 # turn right in place
                 left_track, right_track = 1, -1
 
-            # Control tracks individually
-
-            # only enable track control if none of the movement keys are not being held
-            #if len(set(keymap_groups['movement_control'].values()) & set(held_keys)) == 0:
-            # if cmd == 0b0000:
-            #     # if the left track isn't asked to move, stop it completely
-            #     if keymap['left_fw'] not in held_keys and keymap['left_bw'] not in held_keys:
-            #         cmd |= 0b1100
-            #     else:
-            #         if keymap['left_fw'] in held_keys:
-            #             cmd |= 0b0100
-            #         if keymap['left_bw'] in held_keys:
-            #             cmd |= 0b1000
-
-            #     # if the right track isn't asked to move, stop it completely
-            #     if keymap['right_fw'] not in held_keys and keymap['right_bw'] not in held_keys:
-            #         cmd |= 0b0011
-            #     else:
-            #         if keymap['right_fw'] in held_keys:
-            #             cmd |= 0b0001
-            #         if keymap['right_bw'] in held_keys:
-            #             cmd |= 0b0010
-
-            #print(f"Command byte: 0b{cmd:04b}")
-            #self.send_message( cmd.to_bytes(ceil(1 / 8), 'little') )
-
-            print({"left_track": left_track, "right_track": right_track})
             self.server.send_message(
                 'CONTROL',
                 {"left_track": left_track, "right_track": right_track}

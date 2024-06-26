@@ -117,30 +117,18 @@ Drive::~Drive() {}
 void Drive::control(float left_speed, float right_speed)
 {
   if (left_speed > 0)
-  {
     m_left_motor.drive_forward(left_speed);
-  }
   else if (left_speed < 0)
-  {
     m_left_motor.drive_backward(-left_speed);
-  }
   else
-  {
     m_left_motor.stop();
-  }
 
   if (right_speed > 0)
-  {
     m_right_motor.drive_forward(right_speed);
-  }
   else if (right_speed < 0)
-  {
     m_right_motor.drive_backward(-right_speed);
-  }
   else
-  {
     m_right_motor.stop();
-  }
 }
 
 /**

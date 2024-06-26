@@ -37,7 +37,7 @@ public:
   bool try_connect(uint16_t timeout);
   bool connected();
   void send_robot_hello();
-  void send_robot_update(float roll, float pitch, float temperature, float travel_dist);
+  void send_robot_update(float roll, float pitch, float temperature, float travel_dist, float obstacle_dist);
   void send_ack(int seq_no);
   void send_message(const char *type, JsonDocument data);
   void handle_packet(AsyncUDPPacket packet);
@@ -235,13 +235,14 @@ void MobrobClient::send_ack(int seq_no)
   send_message("ACK", msg_data);
 }
 
-void MobrobClient::send_robot_update(float roll, float pitch, float temperature, float travel_dist)
+void MobrobClient::send_robot_update(float roll, float pitch, float temperature, float travel_dist, float obstacle_dist)
 {
   msg_data.clear();
   msg_data["roll"] = roll;
   msg_data["pitch"] = pitch;
   msg_data["temperature"] = temperature;
   msg_data["travel_dist"] = travel_dist;
+  msg_data["obstacle_dist"] = obstacle_dist;
   send_message("ROBOT_UPDATE", msg_data);
 }
 

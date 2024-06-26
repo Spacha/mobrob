@@ -7,7 +7,9 @@ class Robot:
     angle = 0.0
 
 class ObstacleWidget(QWidget):
-    def __init__(self, parent=None):
+    obstacle_dist = 999.9
+
+    def __init__(self, parent=None, obstacle_dist=None):
         super().__init__(parent)
         self.robot = Robot() # TODO: TEMP
 
@@ -15,6 +17,7 @@ class ObstacleWidget(QWidget):
         self.setFixedWidth(250)
         self.setMinimumHeight(350)
 
+        self.update_data(obstacle_dist)
         self.draw_robot_sprite()
 
     def draw_robot_sprite(self):
@@ -58,8 +61,15 @@ class ObstacleWidget(QWidget):
         painter.drawImage(self.width() // 2 - rotated_sprite.width() // 2, self.height() // 2 - rotated_sprite.height() // 2, rotated_sprite)
 
         painter.setFont(self.font)
-        painter.drawText(self.width() // 2, self.height() - 30, f"Angle: {round(self.robot.angle, 1)} degrees.")
+        #painter.drawText(self.width() // 2, self.height() - 30, f"Angle: {round(self.robot.angle, 1)} degrees.")
+        if self.obstacle_dist < 30.0:
+            painter.drawText(self.width() // 2, self.height() - 30, f"{round(self.obstacle_dist, 1)} cm.")
 
         # draw the boundaries
         painter.setPen(QColor(75, 75, 75))
         painter.drawRect(0, 0, self.width(), self.height())
+
+    def update_data(self, obstacle_dist: float=None) -> None:
+        if obstacle_dist is not None:
+            self.obstacle_dist = obstacle_dist
+

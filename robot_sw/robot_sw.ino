@@ -1,35 +1,25 @@
 #include "mobrob.h"
 #include "Drive.h"
 #include "MobrobClient.h"
+#include "sensors/UltrasonicSensor.h"
 
-///////////////////////////////////////////////////////////////////////////////
-// Pin assignments
-///////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////
+// Set up modules
+///////////////////////////////////////
 
-#define PIN_STATUS_LED  13
-#define PIN_LEN         14    // Left motor enable:     3,4EN
-#define PIN_L1          27    // Left motor control 1:  3A
-#define PIN_L2          26    // Left motor control 2:  4A
-#define PIN_REN         25    // Right motor enable:    1,2EN
-#define PIN_R1          33    // Right motor control 1: 1A
-#define PIN_R2          32    // Right motor control 2: 2A
-
-///////////////////////////////////////////////////////////////////////////////
-
-#if CONFIG_FREERTOS_UNICORE
-# define ARDUINO_RUNNING_CORE 0
-#else
-# define ARDUINO_RUNNING_CORE 1
-#endif
-
-// Drive
 Drive drive(PIN_L1, PIN_L2, PIN_LEN,
             PIN_R1, PIN_R2, PIN_REN);
 
 // Client
-MobrobClient client(IPAddress(SERVER_ADDR), SERVER_PORT, update_configuration, control);
+MobrobClient client(IPAddress(SERVER_ADDR), SERVER_PORT,
+                    update_configuration, control);
 
+UltrasonicSensor ut_sensor(PIN_UT_TRIG, PIN_UT_ECHO);
+
+///////////////////////////////////////
 // Configuration
+///////////////////////////////////////
+
 Status g_status = UNCONNECTED;
 Mode g_mode = MANUAL;
 
@@ -42,6 +32,8 @@ float g_roll = 0.0;
 float g_pitch = 0.0;
 float g_temperature = 0.0;
 float g_travel_dist = 0.0;
+float g_obstacle_dist = 999.9;
+
 
 void setup()
 {
@@ -55,6 +47,8 @@ void setup()
   ///////////////////////////////////////
 
   pinMode(PIN_STATUS_LED, OUTPUT);
+  pinMode(PIN_UT_TRIG, OUTPUT);
+  pinMode(PIN_UT_ECHO, INPUT);
   pinMode(PIN_LEN, OUTPUT);
   pinMode(PIN_L1, OUTPUT);
   pinMode(PIN_L2, OUTPUT);
@@ -241,12 +235,13 @@ void TaskSendUpdate(void *params)
     {
       // TODO: Take a measurement?
 
-      g_roll = (float)random(0, 10) / 10 - 0.5;
-      g_pitch = (float)random(0, 10) / 10 - 0.5;
-      g_temperature = (float)random(23, 28);
-      g_travel_dist = g_travel_dist + (float)random(0, 5) / 10;
+      //g_roll = (float)random(0, 10) / 10 - 0.5;
+      //g_pitch = (float)random(0, 10) / 10 - 0.5;
+      //g_temperature = (float)random(23, 28);
+      //g_travel_dist = g_travel_dist + (float)random(0, 5) / 10;
+      g_obstacle_dist = ut_sensor.measure_distance();
 
-      client.send_robot_update(g_roll, g_pitch, g_temperature, g_travel_dist);
+      client.send_robot_update(g_roll, g_pitch, g_temperature, g_travel_dist, g_obstacle_dist);
     }
 
     vTaskDelay(update_rate / portTICK_PERIOD_MS);
