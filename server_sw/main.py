@@ -117,6 +117,7 @@ class DashboardApplication(QMainWindow):
         # Bottom pane
         self.bottom_pane = QWidget(self)
         self.bottom_pane.setFixedHeight(150)
+        self.bottom_pane.setContentsMargins(0, 0, 0, 0)
         bottom_pane_layout = QHBoxLayout(self.bottom_pane)
 
         self.controls_widget = ControlsWidget(
@@ -205,14 +206,14 @@ class DashboardApplication(QMainWindow):
             lambda msg: self.receive_message(msg),
             lambda s, os: self.update_server_status(s, os),
         )
-    
+
     def update_robot_data(self, data_dict: dict) -> None:
         self.robot_data |= data_dict
 
         # TODO: Travel dist update here if necessary
 
         # update widgets if necessary
-        if any(k in data_dict for k in ['roll', 'pitch']):
+        if any(k in data_dict for k in ['pitch', 'roll']):
             self.attitude_widget.update_data(self.robot_data['pitch'], self.robot_data['roll'])
         if any(k in data_dict for k in ['temperature', 'travel_dist']):
             self.measurements_widget.update_data(self.robot_data['temperature'], self.robot_data['travel_dist'])
