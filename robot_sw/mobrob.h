@@ -13,8 +13,8 @@
 
 #define PIN_UT_TRIG     21
 #define PIN_UT_ECHO      4
-#define PIN_IMU_SCL     23
 #define PIN_IMU_SDA     22
+#define PIN_IMU_SCL     23
 #define PIN_LHALL       36
 #define PIN_RHALL       39
 

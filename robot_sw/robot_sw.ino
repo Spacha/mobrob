@@ -2,6 +2,7 @@
 #include "Drive.h"
 #include "MobrobClient.h"
 #include "sensors/UltrasonicSensor.h"
+#include "sensors/IMUSensor.h"
 
 ///////////////////////////////////////
 // Set up modules
@@ -15,6 +16,8 @@ MobrobClient client(IPAddress(SERVER_ADDR), SERVER_PORT,
                     update_configuration, control);
 
 UltrasonicSensor ut_sensor(PIN_UT_TRIG, PIN_UT_ECHO);
+
+IMUSensor imu_sensor(PIN_IMU_SDA, PIN_IMU_SCL);
 
 ///////////////////////////////////////
 // Configuration
@@ -37,10 +40,14 @@ float g_obstacle_dist = 999.9;
 
 void setup()
 {
+  Wire.setPins(PIN_IMU_SDA, PIN_IMU_SCL);
+
   Serial.begin(115200);
   delay(100);
 
   client.setup();
+  if (!imu_sensor.setup())
+    Serial.println("Error: failed to initiate IMU sensor!");
 
   ///////////////////////////////////////
   // Set up pins
@@ -76,11 +83,7 @@ void setup()
   xTaskCreate(TaskBlink,          "Blink",          2048, NULL, 5, NULL);
 }
 
-void loop()
-{
-  // ...
-}
-
+void loop() { /* Not used with FreeRTOS */ }
 
 ///////////////////////////////////////////////////////////////////////////////
 // Task definitions
@@ -229,15 +232,17 @@ void TaskSendUpdate(void *params)
 
   const int update_rate = 2000;
 
+  imu_data_t imu_data;
+
   for (;;)
   {
     if (g_status == CONNECTED)
     {
-      // TODO: Take a measurement?
+      imu_sensor.measure_all(&imu_data);
+      g_roll = imu_data.roll;
+      g_pitch = imu_data.pitch;
+      g_temperature = imu_data.temperature;
 
-      //g_roll = (float)random(0, 10) / 10 - 0.5;
-      //g_pitch = (float)random(0, 10) / 10 - 0.5;
-      //g_temperature = (float)random(23, 28);
       //g_travel_dist = g_travel_dist + (float)random(0, 5) / 10;
       g_obstacle_dist = ut_sensor.measure_distance();
 
