@@ -7,12 +7,12 @@
 ///////////////////////////////////////////////////////////////////////////////
 
 #define PIN_STATUS_LED  13
-#define PIN_LEN         14    // Left motor enable:     1,2EN
-#define PIN_L1          27    // Left motor control 1:  1A
-#define PIN_L2          26    // Left motor control 2:  2A
-#define PIN_REN         25    // Right motor enable:    3,4EN
-#define PIN_R1          33    // Right motor control 1: 3A
-#define PIN_R2          32    // Right motor control 2: 4A
+#define PIN_LEN         14    // Left motor enable:     3,4EN
+#define PIN_L1          27    // Left motor control 1:  3A
+#define PIN_L2          26    // Left motor control 2:  4A
+#define PIN_REN         25    // Right motor enable:    1,2EN
+#define PIN_R1          33    // Right motor control 1: 1A
+#define PIN_R2          32    // Right motor control 2: 2A
 
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -32,7 +32,10 @@ MobrobClient client(IPAddress(SERVER_ADDR), SERVER_PORT, update_configuration, c
 // Configuration
 Status g_status = UNCONNECTED;
 Mode g_mode = MANUAL;
+
 float g_track_speed = 0.0;
+float g_left_track_speed = 0.0;
+float g_right_track_speed = 0.0;
 
 // TODO: An update struct?
 float g_roll = 0.0;
@@ -44,6 +47,8 @@ void setup()
 {
   Serial.begin(115200);
   delay(100);
+
+  client.setup();
 
   ///////////////////////////////////////
   // Set up pins
@@ -57,17 +62,20 @@ void setup()
   pinMode(PIN_R1, OUTPUT);
   pinMode(PIN_R2, OUTPUT);
 
-
   Serial.println("Initialized. Commands:");
-  Serial.println("1. drive <left_speed> <right_speed>");
+  Serial.println("1. drive <left_direction> <right_direction>");
   Serial.println("2. brake <1 (apply) | 0 (release)>");
-  Serial.println("3. status <0 (UNCONNECTED) | 1 (CONNECTED)>");
+  Serial.println("3. speed <speed>");
+  Serial.println("4. status <0 (UNCONNECTED) | 1 (CONNECTED)>");
   Serial.println();
+
+  drive.control(0.0, 0.0);
 
   ///////////////////////////////////////
   // Start tasks
   ///////////////////////////////////////
 
+  xTaskCreate(TaskControl,        "Control",        2048, NULL, 1, NULL);
   xTaskCreate(TaskKeepWifiAlive,  "KeepWifiAlive",  4096, NULL, 2, NULL);
   xTaskCreate(TaskSendUpdate,     "SendUpdate",     4096, NULL, 3, NULL);
   xTaskCreate(TaskReceiveSerial,  "ReceiveSerial",  2048, NULL, 4, NULL);
@@ -83,6 +91,27 @@ void loop()
 ///////////////////////////////////////////////////////////////////////////////
 // Task definitions
 ///////////////////////////////////////////////////////////////////////////////
+
+void TaskControl(void *params)
+{
+  (void)params;
+
+  for (;;) {
+    // TODO: hall measurements, controls if in EXPLORE mode
+
+    drive.control(g_left_track_speed, g_right_track_speed);
+    // if (g_right_track_speed != 0.0)
+    // {
+    //   Serial.println("DRIVEEEEEEE");
+    //   digitalWrite(PIN_R1, HIGH);
+    //   digitalWrite(PIN_R2, LOW);
+    //   digitalWrite(PIN_REN, HIGH);
+    // }
+
+    //vTaskDelay(50 / portTICK_PERIOD_MS);
+    vTaskDelay(25 / portTICK_PERIOD_MS);
+  }
+}
 
 void TaskReceiveSerial(void *params)
 {
@@ -145,7 +174,10 @@ void TaskReceiveSerial(void *params)
           left_speed = leftSpeedStr.toFloat();
           right_speed = rightSpeedStr.toFloat();
 
-          drive.control(left_speed, right_speed);
+          //drive.control(left_speed, right_speed);
+          g_left_track_speed = g_track_speed * left_speed;
+          g_right_track_speed = g_track_speed * right_speed;
+
           Serial.print("Left speed: ");
           Serial.print(left_speed);
           Serial.print(", Right speed: ");
@@ -155,7 +187,18 @@ void TaskReceiveSerial(void *params)
         {
           Serial.println("Invalid input format. Use: <left_speed> <right_speed>");
         }
-      } else {
+      }
+      else if (input.startsWith("speed "))
+      {
+        int speed = input.substring(6).toFloat();
+
+        g_track_speed = speed;
+
+        Serial.print("Speed set to ");
+        Serial.println(speed);
+      }
+      else
+      {
         Serial.println("Invalid command.");
       }
     }
@@ -217,7 +260,6 @@ void TaskKeepWifiAlive(void *params)
   const int wifi_poll_delay     = 5000;
   const int wifi_timeout        = 20000;
   const int wifi_recover_delay  = 15000;
-  //const int wifi_recover_delay  = 1000;
 
   for (;;)
   {
@@ -260,10 +302,13 @@ void update_configuration(float track_speed, Mode mode)
 void control(float left_track, float right_track)
 {
   // Update the configuration based on the received values
-  Serial.print("Control: left:");
-  Serial.print(left_track);
-  Serial.print(", right:");
-  Serial.println(right_track);
+  //Serial.print("Control: left:");
+  //Serial.print(left_track);
+  //Serial.print(", right:");
+  //Serial.println(right_track);
 
-  // TODO: drive
+  // TODO: drive, MANUAL / EXPLORE
+  //drive.control(left_track * g_track_speed, right_track * g_track_speed);
+  g_left_track_speed = left_track * g_track_speed;
+  g_right_track_speed = right_track * g_track_speed;
 }

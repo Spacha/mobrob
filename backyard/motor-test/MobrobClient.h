@@ -1,18 +1,48 @@
 #ifndef __MOBROB_CLIENT_H__
 #define __MOBROB_CLIENT_H__
 
+#define FW_VERSION "1.2.3"
+
+enum Status { UNCONNECTED, CONNECTED };
+enum Mode { MANUAL = 0, EXPLORE = 1 };
+
+// WiFi credentials
+#define NETWORK_NAME     "Heiluva_sipuli"
+#define NETWORK_PASSWORD "Slummi2017"
+
 #include "WiFi.h"
 #include "AsyncUDP.h"
 #include "ArduinoJson.h"
-#include "mobrob.h"
 
 #define SERVER_POLL_INTERVAL  2000
 #define SERVER_TIMEOUT        5000
 
 // Statically allocate message objects
+// FIXME: Should we only use a single document based on the maximum size?
+//StaticJsonDocument<96> serverHelloMsg;
+//serverHelloMsg["type"] = "ROBOT_UPDATE";
+
 // See: https://arduinojson.org/v6/assistant
+//StaticJsonDocument<196> msg; // FIXME: Can these be nested?
 StaticJsonDocument<192> msg;
 StaticJsonDocument<96> msg_data;
+//String<> msg_str;
+
+//char msg_type[16];
+
+//StaticJsonDocument<200> robotUpdateMsg; // TODO: Update size
+//robotUpdateMsg["type"] = "ROBOT_UPDATE";
+
+// typedef struct
+// {
+//   char fw_version[16];
+// } robot_hello_data;
+
+// typedef struct
+// {
+//   char fw_version[16];
+// } robot_update_data;
+
 
 class MobrobClient
 {
@@ -33,7 +63,6 @@ public:
   MobrobClient(IPAddress server_addr, uint16_t server_port, std::function<void(float, Mode)> update_configuration_cb, std::function<void(float, float)> control_cb);
   ~MobrobClient();
 
-  void setup();
   bool try_connect(uint16_t timeout);
   bool connected();
   void send_robot_hello();
@@ -63,17 +92,6 @@ MobrobClient::~MobrobClient() {}
 
 /**
  * TODO.
- * 
- * NOTE: This has to be called before pinMode setups in Arduino setup!
- *       Otherwise some of the pins (e.g., 25) will not work!
- */
-void MobrobClient::setup()
-{
-  WiFi.mode(WIFI_STA);
-}
-
-/**
- * TODO.
  */
 bool MobrobClient::try_connect(uint16_t timeout)
 {
@@ -81,6 +99,8 @@ bool MobrobClient::try_connect(uint16_t timeout)
 
   if (!wifi_connected())
   {
+    // try connecting
+    //WiFi.mode(WIFI_STA);
     WiFi.begin(NETWORK_NAME, NETWORK_PASSWORD);
 
     // wait until the timeout or connection

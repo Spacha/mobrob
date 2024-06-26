@@ -1,6 +1,8 @@
 import sys
+from math import ceil
 from enum import IntEnum
-from PyQt5.QtWidgets import QApplication, QMainWindow, QStatusBar, QLabel, QWidget, QHBoxLayout, QVBoxLayout, QGridLayout, QPushButton, QAction, QSpacerItem, QSizePolicy
+from PyQt5.QtCore import pyqtSignal, QEvent
+from PyQt5.QtWidgets import QApplication, QMainWindow, QStatusBar, QLabel, QWidget, QHBoxLayout, QVBoxLayout, QGridLayout, QAction, QDialog
 from PyQt5.QtGui import QFont
 from mobrob_server import MobrobServer, ClientMessage
 from log_widget import LogWidget
@@ -16,25 +18,67 @@ SERVER_PORT     = 3333
 SERVER_BUFSIZE  = 64
 SERVER_TIMEOUT  = 1
 
-# class Connection:
-#     def __init__(self) -> None:
-#         self.status = 'NOT_CONNECTED'
-#         self.seq_no = 0
-    
-#     def handle(self, message: ClientMessage) -> None:
-#         if self.status == 'NOT_CONNECTED':
-#             if message.seq_no == 1 and message.type == 'ROBOT_HELLO':
-#                 # TODO: check message.data['fw_version]
-#                 pass
-#             else:
-#                 pass
-
-#     def set_status(self, status: str) -> None:
-#         self.status = status
-
 class Mode(IntEnum):
     MANUAL  = 0
     EXPLORE = 1
+
+keymap = {
+    'forward':              'w',
+    'backward':             's',
+    'turn_left':            'a',
+    'turn_right':           'd',
+
+    'left_fw':              't',
+    'left_bw':              'g',
+    'right_fw':             'y',
+    'right_bw':             'h',
+}
+keymap_groups = {
+    'movement_control': ['forward', 'backward', 'turn_left', 'turn_right', 'turn_left_tight', 'turn_right_tight'],
+    'track_control':    ['left_fw', 'left_bw', 'right_fw', 'right_bw'],
+}
+
+# Consider grabKeyboard: https://doc.qt.io/qt-6/qwidget.html#grabKeyboard
+class KeycapDialog(QDialog):
+    held_keys_changed = pyqtSignal(set)
+
+    def __init__(self, parent=None):
+        super(KeycapDialog, self).__init__(parent)
+
+        self.resize(140, 70)
+
+        # set up the UI
+        layout = QVBoxLayout()
+        self.label = QLabel('Press a key...')
+        layout.addWidget(self.label)
+        self.setLayout(layout)
+
+        self.keyPressEvent = self.key_event
+        self.keyReleaseEvent = self.key_event
+
+        self.key_whitelist = None
+        self.held_keys = set()
+
+    def key_event(self, event):
+        # don't care about annoying autorep keys
+        if event.isAutoRepeat():
+            return
+
+        # only care about whitelisted keys
+        if self.key_whitelist is not None and event.text() not in self.key_whitelist:
+            return
+
+        if event.type() == QEvent.KeyPress:
+            self.held_keys.add(event.text())
+        elif event.type() == QEvent.KeyRelease:
+            self.held_keys.remove(event.text())
+
+        self.held_keys_changed.emit(self.held_keys)
+        self.label.setText(', '.join([k for k in self.held_keys]))
+
+    def whitelist_keys(self, keys):
+        self.key_whitelist = keys
+
 
 class DashboardApplication(QMainWindow):
     def __init__(self) -> None:
@@ -117,6 +161,12 @@ class DashboardApplication(QMainWindow):
         exit_action.setShortcut("Ctrl+Q")
         exit_action.triggered.connect(self.close)
         file_menu.addAction(exit_action)
+
+        robot_menu = menubar.addMenu("Robot")
+
+        control_robot_action = QAction("Control", self)
+        control_robot_action.triggered.connect(self.show_keycap_dialog)
+        robot_menu.addAction(control_robot_action)
 
         log_menu = menubar.addMenu("Log")
 
@@ -218,6 +268,86 @@ class DashboardApplication(QMainWindow):
             #self.robot_data |= message.data
             self.update_robot_data(message.data)
             self.log_widget.add_row("Robot", "Robot Update", message.data)
+    
+    def show_keycap_dialog(self):
+        # create an instance of the custom dialog
+        keycap_dialog = KeycapDialog(self)
+        keycap_dialog.whitelist_keys(keymap.values())
+
+        def handle_held_keys_changed(held_keys):
+            if self.robot_configuration["mode"] != Mode.MANUAL:
+                return
+
+            # slot for handling the held_keys_changes signal
+            print("Keys pressed:", held_keys)
+
+            # map keys to command byte
+            left_track = 0
+            right_track = 0
+
+            # Control tank movement
+
+            if keymap['forward'] in held_keys:
+                if keymap['turn_right'] in held_keys:
+                    # drive forward and turn right
+                    left_track, right_track = 1, 0
+                elif keymap['turn_left'] in held_keys:
+                    # drive forward and turn left
+                    left_track, right_track = 0, 1
+                else:
+                    # drive forward
+                    left_track, right_track = 1, 1
+            elif keymap['backward'] in held_keys:
+                if keymap['turn_right'] in held_keys:
+                    # reverse and turn right
+                    left_track, right_track = 0, -1
+                elif keymap['turn_left'] in held_keys:
+                    # reverse and turn left
+                    left_track, right_track = -1, 0
+                else:
+                    # drive backward
+                    left_track, right_track = -1, -1
+            elif keymap['turn_left'] in held_keys:
+                # turn left in place
+                left_track, right_track = -1, 1
+            elif keymap['turn_right'] in held_keys:
+                # turn right in place
+                left_track, right_track = 1, -1
+
+            # Control tracks individually
+
+            # only enable track control if none of the movement keys are not being held
+            #if len(set(keymap_groups['movement_control'].values()) & set(held_keys)) == 0:
+            # if cmd == 0b0000:
+            #     # if the left track isn't asked to move, stop it completely
+            #     if keymap['left_fw'] not in held_keys and keymap['left_bw'] not in held_keys:
+            #         cmd |= 0b1100
+            #     else:
+            #         if keymap['left_fw'] in held_keys:
+            #             cmd |= 0b0100
+            #         if keymap['left_bw'] in held_keys:
+            #             cmd |= 0b1000
+
+            #     # if the right track isn't asked to move, stop it completely
+            #     if keymap['right_fw'] not in held_keys and keymap['right_bw'] not in held_keys:
+            #         cmd |= 0b0011
+            #     else:
+            #         if keymap['right_fw'] in held_keys:
+            #             cmd |= 0b0001
+            #         if keymap['right_bw'] in held_keys:
+            #             cmd |= 0b0010
+
+            #print(f"Command byte: 0b{cmd:04b}")
+            #self.send_message( cmd.to_bytes(ceil(1 / 8), 'little') )
+
+            print({"left_track": left_track, "right_track": right_track})
+            self.server.send_message(
+                'CONTROL',
+                {"left_track": left_track, "right_track": right_track}
+            )
+
+        keycap_dialog.held_keys_changed.connect(handle_held_keys_changed)
+        keycap_dialog.exec_()
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)

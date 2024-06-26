@@ -1,6 +1,9 @@
 #ifndef __DRIVE_H__
 #define __DRIVE_H__
 
+// Should be between 0-255
+#define MAX_SPEED 180
+
 ///////////////////////////////////////////////////////////////////////////////
 // Motor
 ///////////////////////////////////////////////////////////////////////////////
@@ -50,7 +53,7 @@ void Motor::drive_forward(float speed)
 
   digitalWrite(m_pin_1, LOW);
   digitalWrite(m_pin_2, HIGH);
-  analogWrite(m_pin_en, speed * 255);
+  analogWrite(m_pin_en, (int)(speed * MAX_SPEED));
 }
 
 /**
@@ -62,7 +65,7 @@ void Motor::drive_backward(float speed)
 
   digitalWrite(m_pin_1, HIGH);
   digitalWrite(m_pin_2, LOW);
-  analogWrite(m_pin_en, speed * 255);
+  analogWrite(m_pin_en, (int)(speed * MAX_SPEED));
 }
 
 /**
@@ -83,7 +86,7 @@ void Motor::stop(bool brake)
 class Drive
 {
 public:
-  Drive(int pin_l1, int pin_l2, int pin_len, int pin_r1, int pin_r2, int pin_ren);
+  Drive(uint8_t pin_l1, uint8_t pin_l2, uint8_t pin_len, uint8_t pin_r1, uint8_t pin_r2, uint8_t pin_ren);
   ~Drive();
 
   void control(float left_speed, float right_speed);
@@ -98,7 +101,7 @@ protected:
 /**
  * TODO.
  */
-Drive::Drive(int pin_l1, int pin_l2, int pin_len, int pin_r1, int pin_r2, int pin_ren)
+Drive::Drive(uint8_t pin_l1, uint8_t pin_l2, uint8_t pin_len, uint8_t pin_r1, uint8_t pin_r2, uint8_t pin_ren)
   : m_left_motor(pin_l1, pin_l2, pin_len), 
     m_right_motor(pin_r1, pin_r2, pin_ren) 
 {}
@@ -114,18 +117,30 @@ Drive::~Drive() {}
 void Drive::control(float left_speed, float right_speed)
 {
   if (left_speed > 0)
+  {
     m_left_motor.drive_forward(left_speed);
+  }
   else if (left_speed < 0)
+  {
     m_left_motor.drive_backward(-left_speed);
+  }
   else
+  {
     m_left_motor.stop();
+  }
 
   if (right_speed > 0)
+  {
     m_right_motor.drive_forward(right_speed);
+  }
   else if (right_speed < 0)
+  {
     m_right_motor.drive_backward(-right_speed);
+  }
   else
+  {
     m_right_motor.stop();
+  }
 }
 
 /**
