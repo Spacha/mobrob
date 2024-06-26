@@ -103,7 +103,7 @@ class DashboardApplication(QMainWindow):
         ###################################################
 
         self.resize(900, 600)
-        self.setWindowTitle("Mobrob server")
+        self.setWindowTitle(f"Mobile Robot Dashboard v.{SERVER_VERSION}")
 
         mono_font = QFont()
         mono_font.setFamilies([u"Consolas"])
