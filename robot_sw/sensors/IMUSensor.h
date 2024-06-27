@@ -1,9 +1,14 @@
 #ifndef __IMU_SENSOR_H__
 #define __IMU_SENSOR_H__
 
+#ifndef __TESTING__
 #include <Adafruit_MPU6050.h>
 #include <Adafruit_Sensor.h>
 #include <Wire.h>
+#else
+#include "test/mocks/Adafruit_MPU6050.h"
+#include "test/mocks/Adafruit_Sensor.h"
+#endif
 #include <math.h>
 #include "mobrob.h"
 
@@ -11,9 +16,9 @@
 // Calibration values
 ///////////////////////////////////////////////////////////////////////////////
 
-#define TEMP_CALIBRATED(t)  (t) - 6.0
-#define PITCH_CALIBRATED(p) (p) - 1.1
-#define ROLL_CALIBRATED(r)  (r) + 5.9
+#define TEMP_CALIBRATED(t)  ((t) - 6.0)
+#define PITCH_CALIBRATED(p) ((p) - 1.1)
+#define ROLL_CALIBRATED(r)  ((r) + 5.9)
 
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -78,11 +83,6 @@ bool IMUSensor::setup() {
 void IMUSensor::measure_all(imu_data_t *data) {
   sensors_event_t a, g, temp;
   m_mpu.getEvent(&a, &g, &temp);
-
-  char msgbuf[32] = {0};
-  sprintf(msgbuf, "temp: %.2f\n", temp.temperature);
-  Serial.print(msgbuf);
-
   preprocess_data(data, &a, &g, &temp);
 }
 

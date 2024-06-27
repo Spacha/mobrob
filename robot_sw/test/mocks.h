@@ -17,6 +17,8 @@
 #define LOW         0
 #define HIGH        1
 
+#define PI          3.14159265359
+
 ///////////////////////////////////////////////////////////
 // Mock state
 ///////////////////////////////////////////////////////////
@@ -61,7 +63,7 @@ void analogWrite(int pin, int value)
 }
 
 // NOTE: This is for testing only
-int test_setPulse_width(int pin, int us)
+void test_set_pulse_width(int pin, int us)
 {
     g_mock_state.pin_pulses[pin] = us;
 }

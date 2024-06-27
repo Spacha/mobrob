@@ -114,7 +114,7 @@ bool MobrobClient::connected()
   if (m_connected && (millis() - m_last_message_t >= SERVER_TIMEOUT))
   {
     m_connected = false;
-    Serial.println("[CLT] Server timed out.");
+    // Serial.println("[CLT] Server timed out.");
   }
 
   return m_connected;
@@ -131,23 +131,23 @@ void MobrobClient::handle_packet(AsyncUDPPacket packet)
   
   m_last_message_t = millis();
 
-  Serial.print("[CLT] Received data: ");
+  //Serial.print("[CLT] Received data: ");
   //Serial.write(packet.data(), packet.length());
-  Serial.println();
+  //Serial.println();
 
   // handle message
   JsonDocument msg; // FIXME: Use static message for deserialization also!
   deserializeJson(msg, packet.data());
 
-  serializeJson(msg, Serial);
-  Serial.println();
+  //serializeJson(msg, Serial);
+  //Serial.println();
 
   String msg_type = msg["type"];
   int seq_no = msg["seq_no"];
 
   if (msg_type == "SERVER_HELLO")
   {
-    Serial.print("[CLT] Server hello received!");
+    // Serial.print("[CLT] Server hello received!");
     send_ack(seq_no);
   }
   else if (msg_type == "CONFIGURATION")
@@ -160,6 +160,7 @@ void MobrobClient::handle_packet(AsyncUDPPacket packet)
 
     if (!connected())
     {
+      Serial.println("[CLT] Connected to the server.");
       m_connected = true;
     }
   }
@@ -178,7 +179,7 @@ void MobrobClient::handle_packet(AsyncUDPPacket packet)
   }
   else if (msg_type == "ACK")
   {
-    Serial.println("ACK received.");
+    // Serial.println("ACK received.");
   }
   else
   {
@@ -196,9 +197,9 @@ bool MobrobClient::connect_udp()
 {
   if (m_udp.connect(m_server_addr, m_server_port))
   {
-    Serial.print("[CLT] UDP status:");
-    Serial.println(m_udp.connected());
-    Serial.println("[CLT] Starting connection protocol.");
+    // Serial.print("[CLT] UDP status:");
+    // Serial.println(m_udp.connected());
+    // Serial.println("[CLT] Starting connection protocol.");
 
     // register message handler
     m_udp.onPacket([this](AsyncUDPPacket packet) {
@@ -257,9 +258,9 @@ void MobrobClient::send_message(const char *type, JsonDocument data)
   serializeJson(msg, msg_str);
   m_udp.print(msg_str);
 
-  Serial.print("[CLT] Sent: ");
+  //Serial.print("[CLT] Sent: ");
   serializeJson(msg, Serial);
-  Serial.println();
+  //Serial.println();
   //msg_data.clear();
 }
 

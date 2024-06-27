@@ -29,6 +29,14 @@
 
 ///////////////////////////////////////////////////////////////////////////////
 
+#ifndef __DEBUG__
+#define PRINT(s) Serial.print(s);
+#define PRINTLN(s) Serial.println(s);
+#else
+#define PRINT(s)
+#define PRINTLN(s)
+#endif
+
 #if CONFIG_FREERTOS_UNICORE
 # define ARDUINO_RUNNING_CORE 0
 #else

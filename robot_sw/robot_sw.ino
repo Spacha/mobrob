@@ -47,7 +47,7 @@ void setup()
 
   client.setup();
   if (!imu_sensor.setup())
-    Serial.println("Error: failed to initiate IMU sensor!");
+    PRINTLN("Error: failed to initiate IMU sensor!");
 
   ///////////////////////////////////////
   // Set up pins
@@ -63,12 +63,12 @@ void setup()
   pinMode(PIN_R1, OUTPUT);
   pinMode(PIN_R2, OUTPUT);
 
-  Serial.println("Initialized. Commands:");
-  Serial.println("1. drive <left_direction> <right_direction>");
-  Serial.println("2. brake <1 (apply) | 0 (release)>");
-  Serial.println("3. speed <speed>");
-  Serial.println("4. status <0 (UNCONNECTED) | 1 (CONNECTED)>");
-  Serial.println();
+  PRINTLN("Initialized. Commands:");
+  PRINTLN("1. drive <left_direction> <right_direction>");
+  PRINTLN("2. brake <1 (apply) | 0 (release)>");
+  PRINTLN("3. speed <speed>");
+  PRINTLN("4. status <0 (UNCONNECTED) | 1 (CONNECTED)>");
+  PRINTLN();
 
   drive.control(0.0, 0.0);
 
@@ -118,16 +118,16 @@ void TaskReceiveSerial(void *params)
         if (brakeValue == 1)
         {
           drive.apply_brake();
-          Serial.println("Brake applied");
+          PRINTLN("Brake applied");
         }
         else if (brakeValue == 0)
         {
           drive.release_brake();
-          Serial.println("Brake released");
+          PRINTLN("Brake released");
         }
         else
         {
-          Serial.println("Invalid brake command. Use: brake <1 (apply) | 0 (release)>");
+          PRINTLN("Invalid brake command. Use: brake <1 (apply) | 0 (release)>");
         }
       }
       else if (input.startsWith("status "))
@@ -136,16 +136,16 @@ void TaskReceiveSerial(void *params)
         if (statusValue == 1)
         {
           g_status = CONNECTED;
-          Serial.println("Status set to CONNECTED");
+          PRINTLN("Status set to CONNECTED");
         }
         else if (statusValue == 0)
         {
           g_status = UNCONNECTED;
-          Serial.println("Status set to UNCONNECTED");
+          PRINTLN("Status set to UNCONNECTED");
         }
         else
         {
-          Serial.println("Invalid status command. Use: status <0 (UNCONNECTED) | 1 (CONNECTED)>");
+          PRINTLN("Invalid status command. Use: status <0 (UNCONNECTED) | 1 (CONNECTED)>");
         }
       }
       else if (input.startsWith("drive "))
@@ -166,14 +166,14 @@ void TaskReceiveSerial(void *params)
           g_left_track_speed = g_track_speed * left_speed;
           g_right_track_speed = g_track_speed * right_speed;
 
-          Serial.print("Left speed: ");
-          Serial.print(left_speed);
-          Serial.print(", Right speed: ");
-          Serial.println(right_speed);
+          PRINT("Left speed: ");
+          PRINT(left_speed);
+          PRINT(", Right speed: ");
+          PRINTLN(right_speed);
         }
         else
         {
-          Serial.println("Invalid input format. Use: <left_speed> <right_speed>");
+          PRINTLN("Invalid input format. Use: <left_speed> <right_speed>");
         }
       }
       else if (input.startsWith("speed "))
@@ -182,12 +182,12 @@ void TaskReceiveSerial(void *params)
 
         g_track_speed = speed;
 
-        Serial.print("Speed set to ");
-        Serial.println(speed);
+        PRINT("Speed set to ");
+        PRINTLN(speed);
       }
       else
       {
-        Serial.println("Invalid command.");
+        PRINTLN("Invalid command.");
       }
     }
 
@@ -272,7 +272,7 @@ void TaskKeepWifiAlive(void *params)
     }
 
     // Connection failed: sleep for a while and try again
-    Serial.println("[CLIENT] Error: Connection failed.");
+    PRINTLN("[CLIENT] Error: Connection failed.");
     vTaskDelay(wifi_recover_delay / portTICK_PERIOD_MS);
   }
 }
@@ -281,10 +281,10 @@ void TaskKeepWifiAlive(void *params)
 void update_configuration(float track_speed, Mode mode)
 {
   // Update the configuration based on the received values
-  Serial.print("Track Speed: ");
-  Serial.println(track_speed);
-  Serial.print("Mode: ");
-  Serial.println(mode == MANUAL ? "MANUAL" : "EXPLORE");
+  PRINT("Track Speed: ");
+  PRINTLN(track_speed);
+  PRINT("Mode: ");
+  PRINTLN(mode == MANUAL ? "MANUAL" : "EXPLORE");
 
   g_track_speed = track_speed;
   g_mode = mode;
