@@ -23,6 +23,9 @@
 //  1     0     1     drive backward
 //  1     1     1     fast motor stop
 
+/**
+ * The object for managing a single DC motor.
+ */
 class Motor
 {
 protected:
@@ -55,7 +58,9 @@ Motor::Motor(uint8_t pin_1, uint8_t pin_2, uint8_t pin_en)
 Motor::~Motor() {}
 
 /**
- * TODO.
+ * Drive the motor forward.
+ * 
+ * @param speed The speed of the motor, between [0, 1]
  */
 void Motor::drive_forward(float speed)
 {
@@ -69,7 +74,9 @@ void Motor::drive_forward(float speed)
 }
 
 /**
- * TODO.
+ * Drive the motor backward.
+ * 
+ * @param speed The speed of the motor, between [0, 1]
  */
 void Motor::drive_backward(float speed)
 {
@@ -83,7 +90,9 @@ void Motor::drive_backward(float speed)
 }
 
 /**
- * TODO.
+ * Stop the motor from moving, optionally with hard brake.
+ * 
+ * @param brake Whether to apply the hard brake to disallow free rolling
  */
 void Motor::stop(bool brake)
 {
@@ -97,6 +106,9 @@ void Motor::stop(bool brake)
 // Drive
 ///////////////////////////////////////////////////////////////////////////////
 
+/**
+ * The object for managing the tank's movement.
+ */
 class Drive
 {
 public:
@@ -113,7 +125,7 @@ protected:
 };
 
 /**
- * TODO.
+ * Construct the Drive class.
  */
 Drive::Drive(uint8_t pin_l1, uint8_t pin_l2, uint8_t pin_len, uint8_t pin_r1, uint8_t pin_r2, uint8_t pin_ren)
   : m_left_motor(pin_l1, pin_l2, pin_len), 
@@ -121,12 +133,19 @@ Drive::Drive(uint8_t pin_l1, uint8_t pin_l2, uint8_t pin_len, uint8_t pin_r1, ui
 {}
 
 /**
- * TODO.
+ * Destruct the Drive class.
  */
 Drive::~Drive() {}
 
 /**
- * TODO.
+ * Control the movement of the robot.
+ * 
+ * @param left_speed The speed of the left track [-1, 1]. Negative
+ *                   values drive the motor backward, while positive
+ *                   values drive it forward.
+ * @param left_speed The speed of the right track [-1, 1]. Negative
+ *                   values drive the motor backward, while positive
+ *                   values drive it forward.
  */
 void Drive::control(float left_speed, float right_speed)
 {
@@ -146,7 +165,7 @@ void Drive::control(float left_speed, float right_speed)
 }
 
 /**
- * TODO.
+ * Apply the hard brake to disallow free rolling. Applies to both tracks.
  */
 void Drive::apply_brake()
 {
@@ -155,7 +174,7 @@ void Drive::apply_brake()
 }
 
 /**
- * TODO.
+ * Release the hard brake to allow free rolling.
  */
 void Drive::release_brake()
 {
