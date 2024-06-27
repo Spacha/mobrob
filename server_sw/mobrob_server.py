@@ -191,6 +191,7 @@ class MobrobServer:
         message.seq_no = self.next_seq_no()
         if callback:
             self._ack_callbacks[message.seq_no] = callback
+        print(f"[SRV] Sending: {message}")
         self.sock.sendto(message.to_bytes(), self.client_addr)
     
     def disconnect(self) -> None:

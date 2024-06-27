@@ -1,6 +1,12 @@
 #ifndef __IMU_SENSOR_H__
 #define __IMU_SENSOR_H__
 
+/*
+ * This file is part of the Mobrob project.
+ *
+ * This is the IMU sensor for the robot for reading IMU data.
+ */
+
 #ifndef __TESTING__
 #include <Adafruit_MPU6050.h>
 #include <Adafruit_Sensor.h>
@@ -22,6 +28,7 @@
 
 ///////////////////////////////////////////////////////////////////////////////
 
+// A container for the preprocessed IMU data
 typedef struct
 {
   float temperature;
@@ -29,6 +36,9 @@ typedef struct
   float roll;
 } imu_data_t;
 
+/**
+ * Interacts with the MPU6050 intertial measurement unit.
+ */
 class IMUSensor
 {
 protected:
@@ -46,8 +56,16 @@ public:
   void measure_all(imu_data_t *data);
 };
 
+
+///////////////////////////////////////////////////////////////////////////////
+// Method definitions
+///////////////////////////////////////////////////////////////////////////////
+
 /**
- * TODO.
+ * Construct the IMUSensor class.
+ * 
+ * @param pin_sda The serial data (SDA) pin
+ * @param pin_scl The serial clock (SCL) pin
 */
 IMUSensor::IMUSensor(uint8_t pin_sda, uint8_t pin_scl)
   : m_pin_sda(pin_sda),
@@ -55,12 +73,17 @@ IMUSensor::IMUSensor(uint8_t pin_sda, uint8_t pin_scl)
 {}
 
 /**
- * TODO.
+ * Destruct the IMUSensor class.
+ * 
+ * @param pin_sda The serial data (SDA) pin
+ * @param pin_scl The serial clock (SCL) pin
 */
 IMUSensor::~IMUSensor() {}
 
 /**
- * TODO.
+ * Setup the sensor. This tries connecting with the sensor unit and configures it.
+ * 
+ * @return True if the connection was successful, false otherwise
 */
 bool IMUSensor::setup() {
   // set up pins for I2C / wire
@@ -78,7 +101,9 @@ bool IMUSensor::setup() {
 }
 
 /**
- * TODO.
+ * Take all measurements from the sensor at once.
+ * 
+ * @param data The data container to store the preprocessed measurements into
 */
 void IMUSensor::measure_all(imu_data_t *data) {
   sensors_event_t a, g, temp;
@@ -90,6 +115,15 @@ void IMUSensor::measure_all(imu_data_t *data) {
 // Nonpublic methods
 ///////////////////////////////////////////////////////////
 
+/**
+ * Preprocess the measurement data. This converts the raw measurements
+ * into the measurements the robot needs.
+ * 
+ * @param data The data container to store the preprocessed measurements into
+ * @param a The accelerometer sensor event
+ * @param g The gyroscope sensor event
+ * @param t The temperature sensor event
+*/
 void IMUSensor::preprocess_data(imu_data_t *data, sensors_event_t *a, sensors_event_t *g, sensors_event_t *t) {
   data->temperature = TEMP_CALIBRATED(t->temperature);
 

@@ -1,10 +1,20 @@
 #ifndef __ULTRASONIC_SENSOR_H__
 #define __ULTRASONIC_SENSOR_H__
 
+/*
+ * This file is part of the Mobrob project.
+ *
+ * This is the UT sensor for the robot for measuring distance.
+ */
+
 #include "mobrob.h"
 
+// how many measurements to take for averaging
 #define NUM_MEASUREMENTS 3
 
+/**
+ * The class for communicating with the ultrasonic sensor.
+ */
 class UltrasonicSensor
 {
 protected:
@@ -21,8 +31,16 @@ public:
   float measure_distance();
 };
 
+
+///////////////////////////////////////////////////////////////////////////////
+// Method definitions
+///////////////////////////////////////////////////////////////////////////////
+
 /**
- * TODO.
+ * Construct the UltrasonicSensor class.
+ * 
+ * @param pin_trig The trigger pin of the sensor
+ * @param pin_echo The echo pin of the sensor
 */
 UltrasonicSensor::UltrasonicSensor(uint8_t pin_trig, uint8_t pin_echo)
   : m_pin_trig(pin_trig),
@@ -30,12 +48,14 @@ UltrasonicSensor::UltrasonicSensor(uint8_t pin_trig, uint8_t pin_echo)
 {}
 
 /**
- * TODO.
+ * Destruct the UltrasonicSensor class.
 */
 UltrasonicSensor::~UltrasonicSensor() {}
 
 /**
- * TODO.
+ * Measure distance to an obstacle.
+ * 
+ * @return Obstacle distance in centimeters
 */
 float UltrasonicSensor::measure_distance()
 {
@@ -56,7 +76,7 @@ float UltrasonicSensor::measure_distance()
 ///////////////////////////////////////////////////////////
 
 /**
- * TODO.
+ * Send an echo from the ultrasonic transducer.
 */
 void UltrasonicSensor::send_echo()
 {
@@ -68,7 +88,10 @@ void UltrasonicSensor::send_echo()
 }
 
 /**
- * TODO.
+ * Convert microseconds (of sound travel) to centimeters.
+ * 
+ * @param us Delay in microseconds
+ * @return The corresponding distance in centimeters
 */
 float UltrasonicSensor::us_to_cm(long us)
 {

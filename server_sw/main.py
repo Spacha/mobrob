@@ -133,15 +133,6 @@ class DashboardApplication(QMainWindow):
         #self.measurements_widget.setFixedWidth(100)
         bottom_pane_layout.addWidget(self.measurements_widget)
 
-        # Robot data
-        # self.data_roll_label = QLabel()
-        # self.data_pitch_label = QLabel()
-        # self.data_temp_label = QLabel()
-
-        # Robot configuration form
-        #self.send_conf_btn = QPushButton("Send configuration")
-        #self.send_conf_btn.clicked.connect(self.send_robot_configuration)
-
         # Add widgets to the grid layout
         main_grid.addWidget(self.log_widget, 0, 0)
         main_grid.addWidget(self.obstacle_widget, 0, 1)
@@ -227,7 +218,7 @@ class DashboardApplication(QMainWindow):
 
         configuration = self.robot_configuration
         if mode is not None:
-            configuration["mode"] = mode
+            configuration["mode"] = Mode.EXPLORE if mode == 'EXPLORE' else Mode.MANUAL
         if speed is not None:
             configuration["speed"] = speed
 

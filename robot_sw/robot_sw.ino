@@ -1,3 +1,11 @@
+/*
+ * This file is part of the Mobrob project.
+ *
+ * This is the main entrypoint of the robot software.
+ *
+ * Miika & Essi
+ */
+
 #include "mobrob.h"
 #include "Drive.h"
 #include "MobrobClient.h"
@@ -11,7 +19,6 @@
 Drive drive(PIN_L1, PIN_L2, PIN_LEN,
             PIN_R1, PIN_R2, PIN_REN);
 
-// Client
 MobrobClient client(IPAddress(SERVER_ADDR), SERVER_PORT,
                     update_configuration, control);
 
@@ -76,11 +83,11 @@ void setup()
   // Start tasks
   ///////////////////////////////////////
 
-  xTaskCreate(TaskControl,        "Control",        2048, NULL, 1, NULL);
-  xTaskCreate(TaskKeepWifiAlive,  "KeepWifiAlive",  4096, NULL, 2, NULL);
-  xTaskCreate(TaskSendUpdate,     "SendUpdate",     4096, NULL, 3, NULL);
-  xTaskCreate(TaskReceiveSerial,  "ReceiveSerial",  2048, NULL, 4, NULL);
-  xTaskCreate(TaskBlink,          "Blink",          2048, NULL, 5, NULL);
+  xTaskCreate(TaskControl,            "Control",            2048, NULL, 1, NULL);
+  xTaskCreate(TaskMaintainConnection, "MaintainConnection", 4096, NULL, 2, NULL);
+  xTaskCreate(TaskSendUpdate,         "SendUpdate",         4096, NULL, 3, NULL);
+  xTaskCreate(TaskReceiveSerial,      "ReceiveSerial",      2048, NULL, 4, NULL);
+  xTaskCreate(TaskBlink,              "Blink",              2048, NULL, 5, NULL);
 }
 
 void loop() { /* Not used with FreeRTOS */ }
@@ -89,18 +96,66 @@ void loop() { /* Not used with FreeRTOS */ }
 // Task definitions
 ///////////////////////////////////////////////////////////////////////////////
 
+/**
+ * Task for controlling the robot's movement in 'real-time',
+ * based on the current control commands.
+ *
+ * @param params No parameters used.
+ */
 void TaskControl(void *params)
 {
   (void)params;
 
+  //long started_turning_at = -1;
+  bool turning = false;
+
   for (;;) {
     // TODO: hall measurements - move from the old FW version
+
+    // if connected and in the EXPLORE mode,
+    // drive avoiding obstacles by turning
+    if (g_status == CONNECTED && g_mode == EXPLORE)
+    {
+      if (turning)
+      {
+        if (g_obstacle_dist > 30.0)
+        {
+          PRINTLN("[EXP] Stop turning");
+          g_left_track_speed = 0;
+          g_right_track_speed = 0;
+          turning = false;
+        }
+      }
+
+      if (!turning)
+      {
+        // start turning
+        if (g_obstacle_dist <= 15.0)
+        {
+          PRINTLN("[EXP] Start turning");
+          g_left_track_speed = g_track_speed;
+          g_right_track_speed = -g_track_speed;
+          turning = true;
+        }
+        // drive forward
+        else
+        {
+          g_left_track_speed = g_track_speed;
+          g_right_track_speed = g_track_speed;
+        }
+      }
+    }
 
     drive.control(g_left_track_speed, g_right_track_speed);
     vTaskDelay(25 / portTICK_PERIOD_MS);
   }
 }
 
+/**
+ * Task for receiving commands from the serial port when in debug mode.
+ *
+ * @param params No parameters used.
+ */
 void TaskReceiveSerial(void *params)
 {
   (void)params;
@@ -162,7 +217,6 @@ void TaskReceiveSerial(void *params)
           left_speed = leftSpeedStr.toFloat();
           right_speed = rightSpeedStr.toFloat();
 
-          //drive.control(left_speed, right_speed);
           g_left_track_speed = g_track_speed * left_speed;
           g_right_track_speed = g_track_speed * right_speed;
 
@@ -195,6 +249,11 @@ void TaskReceiveSerial(void *params)
   }
 }
 
+/**
+ * Task for blinking the status LED.
+ *
+ * @param params No parameters used.
+ */
 void TaskBlink(void *params)
 {
   (void)params;
@@ -217,6 +276,11 @@ void TaskBlink(void *params)
   }
 }
 
+/**
+ * Task for sending data updates to the server.
+ *
+ * @param params No parameters used.
+ */
 void TaskSendUpdate(void *params)
 {
   (void)params;
@@ -227,6 +291,7 @@ void TaskSendUpdate(void *params)
 
   for (;;)
   {
+    // if connected, take a measurement and send an update to the server
     if (g_status == CONNECTED)
     {
       imu_sensor.measure_all(&imu_data);
@@ -244,7 +309,12 @@ void TaskSendUpdate(void *params)
   }
 }
 
-void TaskKeepWifiAlive(void *params)
+/**
+ * Task for maintaining the robot's connection with the server.
+ *
+ * @param params No parameters used.
+ */
+void TaskMaintainConnection(void *params)
 {
   (void)params;
 
@@ -254,30 +324,36 @@ void TaskKeepWifiAlive(void *params)
 
   for (;;)
   {
-    // Connected: sleep for a while and then check again
+    // connected: sleep for a while and then check again
     if (client.connected())
     {
       vTaskDelay(wifi_poll_delay / portTICK_PERIOD_MS);
       continue;
     }
 
-    // Unconnected: try connecting
+    // unconnected: try connecting
     g_status = UNCONNECTED;
+    drive.control(0.0, 0.0);
     
     if (client.try_connect(wifi_timeout))
     {
-      // Just connected
+      // just connected
       g_status = CONNECTED;
       continue;
     }
 
-    // Connection failed: sleep for a while and try again
+    // connection failed: sleep for a while and try again
     PRINTLN("[CLIENT] Error: Connection failed.");
     vTaskDelay(wifi_recover_delay / portTICK_PERIOD_MS);
   }
 }
 
-
+/**
+ * Update the robot's configuration.
+ *
+ * @param track_speed The track speed of both tracks [0, 1]
+ * @param mode The robot's mode {MANUAL, EXPLORE}
+ */
 void update_configuration(float track_speed, Mode mode)
 {
   // Update the configuration based on the received values
@@ -286,10 +362,22 @@ void update_configuration(float track_speed, Mode mode)
   PRINT("Mode: ");
   PRINTLN(mode == MANUAL ? "MANUAL" : "EXPLORE");
 
+  if (g_mode == EXPLORE && mode == MANUAL)
+  {
+    g_left_track_speed = 0;
+    g_right_track_speed = 0;
+  }
+
   g_track_speed = track_speed;
   g_mode = mode;
 }
 
+/**
+ * Control the robot's driving.
+ *
+ * @param left_track The direction of the left track {-1, 0, 1}
+ * @param right_track The direction of the right track {-1, 0, 1}
+ */
 void control(float left_track, float right_track)
 {
   g_left_track_speed = left_track * g_track_speed;

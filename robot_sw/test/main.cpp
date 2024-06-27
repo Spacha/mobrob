@@ -1,3 +1,9 @@
+/*
+ * This file is part of the Mobrob project.
+ *
+ * This is the test runner for testing the robot software.
+ */
+
 #include "test.h"
 #include "mocks.h"
 

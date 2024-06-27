@@ -2,9 +2,13 @@
 #define __NETWORK_CREDENTIALS_H__
 
 /////////////////////////////////////////////
-// Fill in your credentials here...
+// WiFi credentials
 #define NETWORK_NAME     ""
 #define NETWORK_PASSWORD ""
+
+// UDP server address
+#define SERVER_ADDR       192,168,1,2
+#define SERVER_PORT       3333
 /////////////////////////////////////////////
 
 #endif /* __NETWORK_CREDENTIALS_H__ */

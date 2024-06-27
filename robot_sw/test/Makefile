@@ -14,6 +14,3 @@ OUT = test.exe
 all: $(SRC)
 	$(CXX) $(CFLAGS) $(SRC) -I $(EXT_INC) -o $(OUT)
 	@echo Done. Run using: "./test.exe"
-
-#	$(CXX) $(CFLAGS) $(SRC) $(EXT_LIB) -I $(EXT_INC) -o $(OUT) -fopenmp
-#	@echo Done. Run using: "test.exe

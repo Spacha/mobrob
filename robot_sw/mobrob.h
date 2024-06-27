@@ -5,6 +5,9 @@
 
 #define FW_VERSION "1.0.0"
 
+// If defined, the debug mode is enabled, which allows:
+// * Verbose logging to serial
+// * Serial control interface
 #define __DEBUG__
 
 ///////////////////////////////////////////////////////////////////////////////

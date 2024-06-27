@@ -40,7 +40,8 @@ public:
 };
 
 /**
- * TODO.
+ * Construct the Motor class.
+ * @param pin_1 
  */
 Motor::Motor(uint8_t pin_1, uint8_t pin_2, uint8_t pin_en)
   : m_pin_1(pin_1),
@@ -49,7 +50,7 @@ Motor::Motor(uint8_t pin_1, uint8_t pin_2, uint8_t pin_en)
 {}
 
 /**
- * TODO.
+ * Destruct the Motor class.
  */
 Motor::~Motor() {}
 
