@@ -141,7 +141,7 @@ class MobrobServer:
             try:
                 data, addr = self.sock.recvfrom(self.options['buffer_size'])
                 message = ClientMessage.from_bytes(data)
-                print("RAW:", message)
+                #print("RAW:", message)
             except ConnectionResetError:
                 if self._status == 'CONNECTED':
                     self.disconnect()
@@ -175,10 +175,10 @@ class MobrobServer:
 
             # if not connected, only allow ROBOT_HELLO message
             if message.type == 'ROBOT_HELLO':
-                if self._status == 'CONNECTED':
+                if self._status == 'CONNECTED' or message.data['fw_version'] != '1.0.0':
+                    print("[SRV] Error! Incompatible FW version!")
                     self.disconnect()
 
-                # TODO: check fw_version
                 self.client_addr = addr
                 self.send_message('SERVER_HELLO', {
                     'server_version': __version__

@@ -1,6 +1,9 @@
 #include "test.h"
 #include "mocks.h"
+
+// Test targets
 #include "../Drive.h"
+#include "../sensors/UltrasonicSensor.h"
 
 int main(int argc, char **argv)
 {
@@ -126,6 +129,25 @@ int main(int argc, char **argv)
     TEST(test_pin(4, HIGH), "Pin 4 state");
     TEST(test_pin(5, LOW), "Pin 5 state");
     TEST(test_pin(6, 180), "Pin 6 state");
+
+    ///////////////////////////////////////////////////////
+    print_test_section("Ultrasonic sensor tests");
+    reset_mocks();
+    ///////////////////////////////////////////////////////
+
+    UltrasonicSensor ut_sensor();
+
+    // 58 us   -> 1.0 cm
+    // 580 us  -> 10.0 cm
+    // 1160 us -> 20.0 cm
+    // 2900 us -> 50.0 cm
+
+    print_test_subsection("Measuring very long distance");
+
+    test_setPulseWidth(1, 10);
+
+    //drive.control(1.0, -1.0);
+    TEST(test_pin(1, LOW), "Pin 1 state");
 
     ///////////////////////////////////////////////////////
 

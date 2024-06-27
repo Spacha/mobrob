@@ -4,6 +4,15 @@
 // Should be between 0-255
 #define MAX_SPEED 180
 
+// Track speed calibration values
+#ifndef __TESTING__
+#define CALIBRATED_LEFT(s) ((s)  - (s) * 0.01)
+#define CALIBRATED_RIGHT(s) ((s) + (s) * 0.01)
+#else
+#define CALIBRATED_LEFT(s) (s)
+#define CALIBRATED_RIGHT(s) (s)
+#endif
+
 ///////////////////////////////////////////////////////////////////////////////
 // Motor
 ///////////////////////////////////////////////////////////////////////////////
@@ -49,7 +58,9 @@ Motor::~Motor() {}
  */
 void Motor::drive_forward(float speed)
 {
-  assert(speed >= 0 && speed <= 1);
+  // clamp speed
+  if (speed > 1.0) speed = 1.0;
+  if (speed < 0.0) speed = 0.0;
 
   digitalWrite(m_pin_1, LOW);
   digitalWrite(m_pin_2, HIGH);
@@ -61,7 +72,9 @@ void Motor::drive_forward(float speed)
  */
 void Motor::drive_backward(float speed)
 {
-  assert(speed >= 0 && speed <= 1);
+  // clamp speed
+  if (speed > 1.0) speed = 1.0;
+  if (speed < 0.0) speed = 0.0;
 
   digitalWrite(m_pin_1, HIGH);
   digitalWrite(m_pin_2, LOW);
@@ -117,16 +130,16 @@ Drive::~Drive() {}
 void Drive::control(float left_speed, float right_speed)
 {
   if (left_speed > 0)
-    m_left_motor.drive_forward(left_speed);
+    m_left_motor.drive_forward(CALIBRATED_LEFT(left_speed));
   else if (left_speed < 0)
-    m_left_motor.drive_backward(-left_speed);
+    m_left_motor.drive_backward(-CALIBRATED_LEFT(left_speed));
   else
     m_left_motor.stop();
 
   if (right_speed > 0)
-    m_right_motor.drive_forward(right_speed);
+    m_right_motor.drive_forward(CALIBRATED_RIGHT(right_speed));
   else if (right_speed < 0)
-    m_right_motor.drive_backward(-right_speed);
+    m_right_motor.drive_backward(-CALIBRATED_RIGHT(right_speed));
   else
     m_right_motor.stop();
 }

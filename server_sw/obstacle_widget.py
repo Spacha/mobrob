@@ -1,75 +1,80 @@
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import Qt, QRectF
 from PyQt5.QtWidgets import QWidget
 from PyQt5.QtGui import QPainter, QColor, QPen, QImage, QPainterPath, QTransform, QFont
 
-# FIXME: TEMP
-class Robot:
-    angle = 0.0
-
 class ObstacleWidget(QWidget):
+    MAX_OBSTACLE_DIST = 30.0
     obstacle_dist = 999.9
+    left_track_dir = 0.0
+    right_track_dir = 0.0
 
-    def __init__(self, parent=None, obstacle_dist=None):
+    def __init__(self, parent=None, obstacle_dist=None, left_track_dir=None, right_track_dir=None):
         super().__init__(parent)
-        self.robot = Robot() # TODO: TEMP
 
-        self.font = QFont("Arial", 16)
+        self.font = QFont("Arial", 14)
         self.setFixedWidth(250)
         self.setMinimumHeight(350)
 
-        self.update_data(obstacle_dist)
-        self.draw_robot_sprite()
+        image_prefix = "resources/view_top"
+        self.robot_images = {
+            ( 0,  0): QImage(f"{image_prefix}.png"),
+            ( 0, -1): QImage(f"{image_prefix}_rb.png"),
+            ( 0,  1): QImage(f"{image_prefix}_rf.png"),
+            (-1,  0): QImage(f"{image_prefix}_lb.png"),
+            ( 1,  0): QImage(f"{image_prefix}_lf.png"),
+            (-1, -1): QImage(f"{image_prefix}_lbrb.png"),
+            ( 1,  1): QImage(f"{image_prefix}_lfrf.png"),
+            (-1,  1): QImage(f"{image_prefix}_lbrf.png"),
+            ( 1, -1): QImage(f"{image_prefix}_lfrb.png")
+        }
+        self.obstacle_image_warning = QImage("resources/obstacle_warn.png")
+        self.obstacle_image_danger = QImage("resources/obstacle_danger.png")
 
-    def draw_robot_sprite(self):
-        # create a QPixmap or QImage to store the pre-drawn sprite
-        self.robot_sprite_buffer = QImage(64, 64, QImage.Format_ARGB32)
-        self.robot_sprite_buffer.fill(Qt.transparent)
-
-        # the chassis
-        painter = QPainter(self.robot_sprite_buffer)
-        painter.setRenderHint(QPainter.Antialiasing)
-        painter.fillRect(20, 20, 24, 44, QColor(255, 0, 0))
-
-        # the forward facing arrow
-        path = QPainterPath()
-        path.moveTo(20, 20 - 2)
-        path.lineTo(32, 10 - 2)
-        path.lineTo(44, 20 - 2)
-        path.lineTo(20, 20 - 2)
-        painter.setPen(Qt.NoPen)
-        painter.fillPath(path, QColor(255, 0, 0))
-
-        painter.end()
+        self.update_data(obstacle_dist, left_track_dir, right_track_dir)
 
     def paintEvent(self, event):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing)
 
-        painter.fillRect(self.rect(), QColor(180, 180, 180))
+        painter.fillRect(self.rect(), QColor(255, 255, 255))
 
-        # draw points
-        painter.setPen(QPen(Qt.red, 5))
-        points = [(50, 50), (100, 100), (200, 150), (250, 200)]
-        for point in points:
-            painter.drawPoint(*point)
+        # Draw the robot
+        self.robot_image = self.robot_images[(self.left_track_dir, self.right_track_dir)]
+        # TODO: could be done once in constructor
+        robot_image_width = self.width() // 3
+        robot_image_scaled = self.robot_image.scaled(robot_image_width, robot_image_width, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+        robot_y = self.height() - robot_image_scaled.height() // 2 - 60
+        painter.drawImage(self.width() // 2 - robot_image_scaled.width() // 2, robot_y, robot_image_scaled)
 
-        # rotate the robot sprite
-        rotation_transform = QTransform().rotate(self.robot.angle)
-        rotated_sprite = self.robot_sprite_buffer.transformed(rotation_transform)
+        if self.obstacle_dist <= self.MAX_OBSTACLE_DIST:
+            # Draw the obstacle
+            obstacle_image = self.obstacle_image_warning if self.obstacle_dist > 10.0 else self.obstacle_image_danger
+            robot_front = robot_y - robot_image_scaled.height() // 2
+            obstacle_image_width = self.width() // 4
+            obstacle_image_scaled = obstacle_image.scaled(obstacle_image_width, obstacle_image_width, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+            obstacle_y = int(robot_front - robot_front * self.obstacle_dist // self.MAX_OBSTACLE_DIST)
+            painter.drawImage(
+                self.width() // 2 - obstacle_image_scaled.width() // 2,
+                obstacle_y - obstacle_image_scaled.height() // 2,
+                obstacle_image_scaled
+            )
 
-        # draw the robot sprite
-        painter.drawImage(self.width() // 2 - rotated_sprite.width() // 2, self.height() // 2 - rotated_sprite.height() // 2, rotated_sprite)
-
-        painter.setFont(self.font)
-        #painter.drawText(self.width() // 2, self.height() - 30, f"Angle: {round(self.robot.angle, 1)} degrees.")
-        if self.obstacle_dist < 30.0:
-            painter.drawText(self.width() // 2, self.height() - 30, f"{round(self.obstacle_dist, 1)} cm.")
+            # Draw the distance text below the obstacle
+            painter.setFont(self.font)
+            painter.drawText(QRectF(
+                0, obstacle_y + obstacle_image_scaled.height() // 2,
+                self.width(), 20
+            ), Qt.AlignCenter, f"{round(self.obstacle_dist)} cm")
 
         # draw the boundaries
         painter.setPen(QColor(75, 75, 75))
         painter.drawRect(0, 0, self.width(), self.height())
 
-    def update_data(self, obstacle_dist: float=None) -> None:
+    def update_data(self, obstacle_dist: float=None, left_track_dir: float=None, right_track_dir: float=None) -> None:
         if obstacle_dist is not None:
             self.obstacle_dist = obstacle_dist
-
+        if left_track_dir is not None:
+            self.left_track_dir = left_track_dir
+        if right_track_dir is not None:
+            self.right_track_dir = right_track_dir
+        self.repaint()

@@ -94,18 +94,9 @@ void TaskControl(void *params)
   (void)params;
 
   for (;;) {
-    // TODO: hall measurements, controls if in EXPLORE mode
+    // TODO: hall measurements - move from the old FW version
 
     drive.control(g_left_track_speed, g_right_track_speed);
-    // if (g_right_track_speed != 0.0)
-    // {
-    //   Serial.println("DRIVEEEEEEE");
-    //   digitalWrite(PIN_R1, HIGH);
-    //   digitalWrite(PIN_R2, LOW);
-    //   digitalWrite(PIN_REN, HIGH);
-    // }
-
-    //vTaskDelay(50 / portTICK_PERIOD_MS);
     vTaskDelay(25 / portTICK_PERIOD_MS);
   }
 }
@@ -230,7 +221,7 @@ void TaskSendUpdate(void *params)
 {
   (void)params;
 
-  const int update_rate = 2000;
+  const int update_rate = 250;
 
   imu_data_t imu_data;
 
@@ -301,14 +292,6 @@ void update_configuration(float track_speed, Mode mode)
 
 void control(float left_track, float right_track)
 {
-  // Update the configuration based on the received values
-  //Serial.print("Control: left:");
-  //Serial.print(left_track);
-  //Serial.print(", right:");
-  //Serial.println(right_track);
-
-  // TODO: drive, MANUAL / EXPLORE
-  //drive.control(left_track * g_track_speed, right_track * g_track_speed);
   g_left_track_speed = left_track * g_track_speed;
   g_right_track_speed = right_track * g_track_speed;
 }

@@ -11,7 +11,7 @@ from controls_widget import ControlsWidget
 from measurements_widget import MeasurementsWidget
 from attitude_widget import AttitudeWidget
 
-SERVER_VERSION = '0.0.0'
+SERVER_VERSION = '1.0.0'
 
 SERVER_ADDR     = "192.168.1.168"
 SERVER_PORT     = 3333
@@ -96,6 +96,7 @@ class DashboardApplication(QMainWindow):
             'pitch': 0.0,
             'temperature': 0.0,
             'travel_dist': 0.0,
+            'obstacle_dist': 999.9,
         }
 
         ###################################################
@@ -111,7 +112,7 @@ class DashboardApplication(QMainWindow):
         main_grid = QGridLayout()
 
         self.log_widget = LogWidget(self)
-        self.obstacle_widget = ObstacleWidget(self)
+        self.obstacle_widget = ObstacleWidget(self, self.robot_data['obstacle_dist'], 0.0, 0.0)
         self.attitude_widget = AttitudeWidget(self, self.robot_data['roll'], self.robot_data['pitch'])
         
         # Bottom pane
@@ -217,8 +218,8 @@ class DashboardApplication(QMainWindow):
             self.attitude_widget.update_data(self.robot_data['pitch'], self.robot_data['roll'])
         if any(k in data_dict for k in ['temperature', 'travel_dist']):
             self.measurements_widget.update_data(self.robot_data['temperature'], self.robot_data['travel_dist'])
-        if any(k in data_dict for k in ['object_dist']):
-            self.obstacle_widget.update_data(self.robot_data['object_dist'])
+        if any(k in data_dict for k in ['obstacle_dist']):
+            self.obstacle_widget.update_data(self.robot_data['obstacle_dist'])
 
     def send_robot_configuration(self, mode=None, speed=None) -> None:
         if not self.server._status == 'CONNECTED':
@@ -260,7 +261,7 @@ class DashboardApplication(QMainWindow):
         elif status == 'DISCONNECTED' and old_status == 'CONNECTED':
             self.statusbar.showMessage("Waiting for connection...")
             self.set_configuration_status(self.configuration_status) # HAX
-    
+
     def receive_message(self, message: ClientMessage) -> None:
         print(f"[GUI] Received message: {message}")
 
@@ -270,6 +271,13 @@ class DashboardApplication(QMainWindow):
             self.update_robot_data(message.data)
             self.log_widget.add_row("Robot", "Robot Update", message.data)
     
+    def drive_robot(self, left_track_dir: float=None, right_track_dir: float=None):
+        self.obstacle_widget.update_data(left_track_dir=left_track_dir, right_track_dir=right_track_dir)
+        self.server.send_message(
+            'CONTROL',
+            {"left_track": left_track_dir, "right_track": right_track_dir}
+        )
+
     def show_keycap_dialog(self):
         # create an instance of the custom dialog
         keycap_dialog = KeycapDialog(self)
@@ -314,10 +322,7 @@ class DashboardApplication(QMainWindow):
                 # turn right in place
                 left_track, right_track = 1, -1
 
-            self.server.send_message(
-                'CONTROL',
-                {"left_track": left_track, "right_track": right_track}
-            )
+            self.drive_robot(left_track, right_track)
 
         keycap_dialog.held_keys_changed.connect(handle_held_keys_changed)
         keycap_dialog.exec_()

@@ -2,6 +2,9 @@ from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import QGroupBox, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QSpacerItem, QSizePolicy, QFormLayout, QButtonGroup, QRadioButton, QSlider
 
 class ControlsWidget(QGroupBox):
+    mode = 'MANUAL'
+    speed = 0.0
+
     def __init__(self, send_configuration, get_configuration, parent=None, mode=None, speed=None):
         super().__init__(parent)
         self.unsent_changes = False

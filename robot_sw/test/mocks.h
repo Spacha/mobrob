@@ -2,6 +2,8 @@
 #define __MOCKS_H__
 
 #include <assert.h>     // gives assert
+#include <chrono>       // for sleep
+#include <thread>       // for sleep
 
 ///////////////////////////////////////////////////////////
 // Definitions
@@ -22,6 +24,7 @@
 typedef struct
 {
     int pin_states[16] = {0};
+    int pin_pulses[16] = {0};
 } mock_state;
 
 mock_state g_mock_state;
@@ -33,6 +36,7 @@ mock_state g_mock_state;
 void reset_mocks()
 {
     for (int i = 0; i < 16; i++) { g_mock_state.pin_states[i] = 0; }
+    for (int i = 0; i < 16; i++) { g_mock_state.pin_pulses[i] = 0; }
 }
 
 bool test_pin(int pin, int expected_state)
@@ -54,6 +58,28 @@ void analogWrite(int pin, int value)
 {
     //printf("Analog write: %d\n", value);
     g_mock_state.pin_states[pin] = value;
+}
+
+// NOTE: This is for testing only
+int test_setPulse_width(int pin, int us)
+{
+    g_mock_state.pin_pulses[pin] = us;
+}
+
+int pulseIn(int pin, int value)
+{
+    (void)value;
+    return g_mock_state.pin_pulses[pin];
+}
+
+void delay(int ms)
+{
+    std::this_thread::sleep_for(std::chrono::milliseconds(ms));
+}
+
+void delayMicroseconds(int us)
+{
+    std::this_thread::sleep_for(std::chrono::microseconds(us));
 }
 
 #endif /* __MOCKS_H__ */

@@ -3,6 +3,8 @@
 
 #include "mobrob.h"
 
+#define NUM_MEASUREMENTS 3
+
 class UltrasonicSensor
 {
 protected:
@@ -16,7 +18,7 @@ public:
   UltrasonicSensor(uint8_t pin_trig, uint8_t pin_echo);
   ~UltrasonicSensor();
 
-  float measure_distance(uint8_t num_measurements = 1);
+  float measure_distance();
 };
 
 /**
@@ -35,12 +37,18 @@ UltrasonicSensor::~UltrasonicSensor() {}
 /**
  * TODO.
 */
-float UltrasonicSensor::measure_distance(uint8_t num_measurements)
+float UltrasonicSensor::measure_distance()
 {
-  send_echo();
-  long duration = pulseIn(m_pin_echo, HIGH);
+  // calculate the average over multiple measurements
+  long sum_durations = 0;
+  for (int i = 0; i < NUM_MEASUREMENTS; i++)
+  {
+    send_echo();
+    sum_durations += pulseIn(m_pin_echo, HIGH);
+    delay(2);
+  }
 
-  return us_to_cm(duration);
+  return us_to_cm(sum_durations / NUM_MEASUREMENTS);
 }
 
 ///////////////////////////////////////////////////////////

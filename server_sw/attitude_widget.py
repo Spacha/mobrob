@@ -3,17 +3,18 @@ from PyQt5.QtWidgets import QWidget
 from PyQt5.QtGui import QPainter, QColor, QImage, QFont, QTransform
 
 class AttitudeWidget(QWidget):
-    def __init__(self, parent=None, pitch=0.0, roll=0.0):
+    pitch = 0.0
+    roll = 0.0
+
+    def __init__(self, parent=None, pitch=None, roll=None):
         super().__init__(parent)
-        self.roll = roll
-        self.pitch = pitch
 
         # safe limits for showing warnings
         self.roll_limits = (-30, 30)
         self.pitch_limits = (-40, 40)
 
         self.font = QFont("Arial", 12)
-        self.large_font = QFont("Arial", 14, QFont.Bold)
+        self.large_font = QFont("Arial", 14)
         self.image_rear_normal = QImage("resources/view_rear.png")
         self.image_left_normal = QImage("resources/view_left.png")
         self.image_rear_warn = QImage("resources/view_rear_warn.png")

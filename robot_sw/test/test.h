@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <inttypes.h>
 
+#define __TESTING__
 #define TEST(c, s) if (!(c)) { print_failure(s); return 1; } else { print_success(s); }
 
 // Forward declarations
